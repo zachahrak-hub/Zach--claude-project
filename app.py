@@ -7,14 +7,30 @@ import re
 import anthropic
 import openpyxl
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, send_file
+from functools import wraps
+from flask import Flask, jsonify, render_template, request, send_file, session, redirect, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from playwright.sync_api import sync_playwright
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
+
 api_key = os.getenv("ANTHROPIC_API_KEY")
 client = anthropic.Anthropic(api_key=api_key)
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
 # ── Browser state ──────────────────────────────────────────────────────────────
 # Playwright must run on the same thread - use threading.local
@@ -185,6 +201,8 @@ def execute_excel_tool(tool_name: str, tool_input: dict, wb: openpyxl.Workbook) 
 
 # ── Agent route (browser) ──────────────────────────────────────────────────────
 @app.route("/agent", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour")
 def run_agent():
     data = request.get_json()
     task = data.get("task", "")
@@ -239,6 +257,8 @@ Always base your response on what you find on the official Coralogix pages."""
 
 # ── Excel agent route ──────────────────────────────────────────────────────────
 @app.route("/fill-excel", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour")
 def fill_excel():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -304,12 +324,14 @@ Start with get_excel_structure to see the questions, then fill each one."""
 
 
 @app.route("/close", methods=["POST"])
+@login_required
 def close():
     close_browser()
     return jsonify({"status": "Browser closed"})
 
 
 @app.route("/download-template")
+@login_required
 def download_template():
     """Download the company_data_template.xlsx template"""
     path = os.path.join(os.path.dirname(__file__), "static", "company_data_template.xlsx")
@@ -355,6 +377,8 @@ def get_questionnaire_questions(wb: openpyxl.Workbook) -> list:
 
 
 @app.route("/smart-fill", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour")
 def smart_fill():
     """Auto-fill an Excel questionnaire based on a company data file"""
     import time
@@ -488,6 +512,7 @@ def load_knowledge_base() -> str:
 
 
 @app.route("/upload-kb", methods=["POST"])
+@login_required
 def upload_kb():
     """Upload a document to the knowledge base."""
     if "file" not in request.files:
@@ -499,6 +524,7 @@ def upload_kb():
 
 
 @app.route("/list-kb", methods=["GET"])
+@login_required
 def list_kb():
     """List all documents in the knowledge base."""
     files = [f for f in os.listdir(KB_DIR) if os.path.isfile(os.path.join(KB_DIR, f))]
@@ -506,6 +532,7 @@ def list_kb():
 
 
 @app.route("/delete-kb", methods=["POST"])
+@login_required
 def delete_kb():
     """Delete a document from the knowledge base."""
     data = request.get_json()
@@ -518,6 +545,8 @@ def delete_kb():
 
 
 @app.route("/ask-kb", methods=["POST"])
+@login_required
+@limiter.limit("10 per hour")
 def ask_kb():
     """Answer a question using the knowledge base documents."""
     data = request.get_json()
@@ -556,7 +585,28 @@ KNOWLEDGE BASE DOCUMENTS:
     return jsonify({"answer": answer})
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if (username == os.getenv("APP_USERNAME", "admin") and
+                password == os.getenv("APP_PASSWORD", "changeme")):
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+        error = "Invalid username or password"
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
