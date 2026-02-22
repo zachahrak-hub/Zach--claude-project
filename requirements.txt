@@ -1,0 +1,7 @@
+anthropic
+flask
+playwright
+python-dotenv
+openpyxl
+PyPDF2
+python-docx

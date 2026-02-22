@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zach Agent — Legal & Compliance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #09090d;
+      --bg2:       #0f0f15;
+      --surface:   #13141c;
+      --surface2:  #1a1b26;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.12);
+      --accent:    #6366f1;
+      --accent2:   #8b5cf6;
+      --green:     #10b981;
+      --red:       #ef4444;
+      --text:      #e2e8f0;
+      --text2:     #94a3b8;
+      --text3:     #475569;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 80px;
+    }
+
+    /* ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -100px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 500px;
+      background: radial-gradient(ellipse, rgba(99,102,241,.1) 0%, transparent 65%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .wrap { width: 100%; max-width: 820px; position: relative; z-index: 1; }
+
+    /* ── Header ──────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .logo-box {
+      width: 48px; height: 48px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 32px rgba(99,102,241,.45);
+    }
+
+    .header-text h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      color: #f1f5f9;
+      line-height: 1.2;
+    }
+
+    .header-text p {
+      font-size: .82rem;
+      color: var(--text3);
+      margin-top: 3px;
+    }
+
+    /* ── Tabs ────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+
+    .tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 12px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text3);
+      transition: color .2s, background .2s;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .tab:hover:not(.active) { color: var(--text2); background: rgba(255,255,255,.04); }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(99,102,241,.35);
+    }
+
+    .tab-icon { font-size: 15px; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Card ────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.3);
+    }
+
+    .card-title {
+      font-size: .95rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+
+    .card-sub {
+      font-size: .78rem;
+      color: var(--text3);
+      margin-bottom: 18px;
+    }
+
+    /* ── Form elements ───────────────────────────────────── */
+    label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text3);
+      margin-bottom: 7px;
+      margin-top: 16px;
+    }
+
+    label:first-child { margin-top: 0; }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      line-height: 1.6;
+      padding: 12px 14px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    textarea { min-height: 100px; }
+
+    textarea:focus, input[type="text"]:focus {
+      border-color: rgba(99,102,241,.5);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+    }
+
+    textarea::placeholder, input::placeholder { color: var(--text3); }
+
+    /* ── Buttons ─────────────────────────────────────────── */
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .85rem;
+      font-weight: 600;
+      transition: opacity .15s, transform .12s, box-shadow .15s;
+    }
+
+    button:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(99,102,241,.35);
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+
+    .btn-success {
+      background: rgba(16,185,129,.15);
+      border: 1px solid rgba(16,185,129,.3);
+      color: #6ee7b7;
+    }
+
+    /* ── Drop zone ───────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border2);
+      border-radius: 12px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      color: var(--text3);
+      font-size: .88rem;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: rgba(99,102,241,.55);
+      background: rgba(99,102,241,.06);
+      color: var(--text2);
+    }
+
+    .drop-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .drop-zone input { display: none; }
+
+    .file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      background: rgba(16,185,129,.12);
+      border: 1px solid rgba(16,185,129,.25);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: .77rem;
+      color: #6ee7b7;
+    }
+
+    /* ── Steps ───────────────────────────────────────────── */
+    .section-label {
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--text3);
+      margin-bottom: 12px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      font-size: .82rem;
+    }
+
+    .step-icon { font-size: 15px; min-width: 22px; text-align: center; margin-top: 1px; }
+    .step-tool { color: #a5b4fc; font-weight: 700; margin-bottom: 2px; }
+    .step-input { color: var(--text3); word-break: break-all; }
+    .step-result { color: #6ee7b7; margin-top: 4px; }
+
+    /* ── Result block ────────────────────────────────────── */
+    .result-block {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: .88rem;
+      line-height: 1.75;
+      color: var(--text2);
+      white-space: pre-wrap;
+    }
+
+    .result-success { border-color: rgba(16,185,129,.2); }
+
+    /* ── Progress ────────────────────────────────────────── */
+    .progress-wrap {
+      margin-top: 12px;
+      background: var(--bg2);
+      border-radius: 999px;
+      height: 5px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width .3s;
+      animation: shimmer 1.8s infinite;
+    }
+
+    @keyframes shimmer {
+      0%,100% { opacity:1; } 50% { opacity:.6; }
+    }
+
+    /* ── Status ──────────────────────────────────────────── */
+    .status {
+      font-size: .8rem;
+      color: var(--text3);
+      margin-top: 10px;
+      min-height: 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Download button ─────────────────────────────────── */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 10px 20px;
+      background: rgba(16,185,129,.13);
+      border: 1px solid rgba(16,185,129,.28);
+      color: #6ee7b7;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: .85rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s, opacity .15s;
+    }
+
+    .download-btn:hover { background: rgba(16,185,129,.2); }
+
+    /* ── KB files list ───────────────────────────────────── */
+    .kb-file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .85rem;
+      color: var(--text2);
+    }
+
+    .kb-file-row:last-child { border-bottom: none; }
+
+    .kb-delete-btn {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.2);
+      color: #fca5a5;
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: .75rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: background .15s;
+    }
+
+    .kb-delete-btn:hover { background: rgba(239,68,68,.18); }
+
+    /* ── Divider ─────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+    /* ── Smart fill header ───────────────────────────────── */
+    .smart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-box">⚖️</div>
+    <div class="header-text">
+      <h1>Zach Agent</h1>
+      <p>Legal &amp; Compliance — Smart Agent for Browsing &amp; Questionnaires</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('browser')">
+      <span class="tab-icon">🌐</span> Browser Agent
+    </div>
+    <div class="tab" onclick="switchTab('excel')">
+      <span class="tab-icon">📊</span> Vendor Vetting
+    </div>
+    <div class="tab" onclick="switchTab('smart')">
+      <span class="tab-icon">📝</span> Customer Questionnaire
+    </div>
+    <div class="tab" onclick="switchTab('kb')">
+      <span class="tab-icon">📚</span> Knowledge Base
+    </div>
+  </div>
+
+  <!-- ═══ TAB 1: Browser Agent ═══ -->
+  <div class="tab-content active" id="tab-browser">
+    <div class="card">
+      <div class="card-title">Browser Agent</div>
+      <div class="card-sub">Describe a task and the agent will browse the web to find the answer.</div>
+      <label>Task description</label>
+      <textarea id="task" placeholder="e.g. Does Coralogix use customer data to train AI models?&#10;(Ctrl+Enter to run)"></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" id="runBtn" onclick="runAgent()">▶ Run Agent</button>
+        <button class="btn-secondary" onclick="closeBrowser()">✕ Close Browser</button>
+      </div>
+      <div class="status" id="browserStatus"></div>
+    </div>
+
+    <div class="card" id="browserStepsCard" style="display:none">
+      <div class="section-label">Steps Executed</div>
+      <div id="browserStepsList"></div>
+    </div>
+
+    <div class="card" id="browserResultCard" style="display:none">
+      <div class="section-label" style="margin-bottom:12px;">Final Result</div>
+      <div class="result-block result-success" id="resultText"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 2: Vendor Vetting ═══ -->
+  <div class="tab-content" id="tab-excel">
+    <div class="card">
+      <div class="card-title">Vendor Vetting</div>
+      <div class="card-sub">Upload an Excel questionnaire and company details — the agent fills it automatically.</div>
+
+      <label>Upload Excel file (questionnaire)</label>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <span class="drop-icon">📂</span>
+        <div>Drag an Excel file here or <strong>click to browse</strong></div>
+        <div class="file-name" id="fileName"></div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)" />
+      </div>
+
+      <label>Company details</label>
+      <textarea id="companyInfo" style="min-height:150px" placeholder="Company name: ...
+Address: ...
+Registration number: ...
+Country of incorporation: ...
+Company size: ...
+Contact name & title: ...
+Email: ...
+Phone: ...
+Website: ...
+ISO 27001: Yes/No
+SOC 2: Yes/No
+DPO: ...
+CISO: ...
+Insurance: ..."></textarea>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="excelBtn" onclick="fillExcel()">🤖 Auto-Fill Questionnaire</button>
+      </div>
+      <div class="status" id="excelStatus"></div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="card" id="excelStepsCard" style="display:none">
+      <div class="section-label">Cells Filled</div>
+      <div id="excelStepsList"></div>
+    </div>
+
+    <div class="card" id="excelDownloadCard" style="display:none">
+      <div class="section-label" style="margin-bottom:10px;">Questionnaire Ready</div>
+      <div class="result-block result-success" id="excelResultText"></div>
+      <a id="downloadLink" class="download-btn">⬇ Download Filled Excel</a>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 3: Customer Questionnaire ═══ -->
+  <div class="tab-content" id="tab-smart">
+    <div class="card">
+      <div class="smart-header">
+        <div>
+          <div class="card-title">Smart Auto-Fill</div>
+          <div class="card-sub" style="margin-bottom:0;">Upload questionnaire + company profile → Agent fills it automatically</div>
+        </div>
+        <a href="/download-template" class="download-btn" style="margin-top:0; font-size:.78rem; padding:8px 14px;">
+          ⬇ Company Profile Template
+        </a>
+      </div>
+
+      <label>1. Questionnaire file (Vendor Questionnaire)</label>
+      <div class="drop-zone" id="dropZoneSmart" onclick="document.getElementById('smartQ').click()"
+           ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDrop2(event,'q')">
+        <span class="drop-icon">📋</span>
+        <div>Drag questionnaire here or <strong>click to browse</strong></div>
+        <div class="file-name" id="smartQName"></div>
+        <input type="file" id="smartQ" accept=".xlsx,.xls" onchange="handleSmartFile(event,'q')" />
+      </div>
+
+      <label>2. Company profile (company_data_template.xlsx)</label>
+      <div class="drop-zone" id="dropZoneSmart2" onclick="document.getElementById('smartC').click()"
+           ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDrop2(event,'c')">
+        <span class="drop-icon">🏢</span>
+        <div>Drag company profile here or <strong>click to browse</strong></div>
+        <div class="file-name" id="smartCName"></div>
+        <input type="file" id="smartC" accept=".xlsx,.xls" onchange="handleSmartFile(event,'c')" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="smartBtn" onclick="runSmartFill()">🧠 Auto-Fill</button>
+      </div>
+      <div class="status" id="smartStatus"></div>
+      <div class="progress-wrap" id="smartProgressWrap">
+        <div class="progress-bar" id="smartProgressBar"></div>
+      </div>
+    </div>
+
+    <div class="card" id="smartDownloadCard" style="display:none">
+      <div class="section-label" style="margin-bottom:10px;">Questionnaire Filled</div>
+      <div class="result-block result-success" id="smartResultText"></div>
+      <a id="smartDownloadLink" class="download-btn">⬇ Download Filled Questionnaire</a>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 4: Knowledge Base ═══ -->
+  <div class="tab-content" id="tab-kb">
+    <div class="card">
+      <div class="card-title">Knowledge Base</div>
+      <div class="card-sub">Upload your documents — the agent will use them to answer questions accurately.</div>
+
+      <div class="drop-zone" id="dropZoneKB" onclick="document.getElementById('kbFileInput').click()"
+           ondragover="handleDragOverKB(event)" ondragleave="handleDragLeaveKB(event)" ondrop="handleDropKB(event)">
+        <span class="drop-icon">📄</span>
+        <div>Drag PDF, Excel, Word, or TXT files here or <strong>click to upload</strong></div>
+        <div class="file-name" id="kbUploadStatus"></div>
+        <input type="file" id="kbFileInput" accept=".pdf,.xlsx,.xls,.docx,.txt" multiple onchange="uploadKBFiles(event)" />
+      </div>
+    </div>
+
+    <div class="card" id="kbFilesCard">
+      <div class="section-label">Uploaded Documents</div>
+      <div id="kbFilesList" style="font-size:.85rem; color:var(--text3);">Loading...</div>
+    </div>
+
+    <div class="card">
+      <label>Ask a question</label>
+      <textarea id="kbQuestion" style="min-height:90px" placeholder="e.g. Does Coralogix use customer data to train AI models?&#10;(Ctrl+Enter to ask)"></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" id="kbAskBtn" onclick="askKB()">🔍 Ask</button>
+      </div>
+      <div class="status" id="kbStatus"></div>
+      <div class="progress-wrap" id="kbProgressWrap">
+        <div class="progress-bar" id="kbProgressBar"></div>
+      </div>
+    </div>
+
+    <div class="card" id="kbAnswerCard" style="display:none">
+      <div class="section-label" style="margin-bottom:12px;">Answer</div>
+      <div class="result-block result-success" id="kbAnswerText"></div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+  const TOOL_ICONS = {
+    navigate: "🌐", click: "🖱️", fill: "✏️",
+    get_page_content: "📄", screenshot: "📸", press_key: "⌨️",
+    fill_excel_cell: "📝", get_excel_structure: "🔍",
+  };
+
+  let selectedFile = null;
+  let smartQFile   = null;
+  let smartCFile   = null;
+
+  // ── Tabs ─────────────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    const names = ["browser", "excel", "smart", "kb"];
+    document.querySelectorAll(".tab").forEach((t, i) => {
+      t.classList.toggle("active", names[i] === tab);
+    });
+    names.forEach(n => {
+      document.getElementById("tab-" + n).classList.toggle("active", n === tab);
+    });
+    if (tab === "kb") loadKBFiles();
+  }
+
+  // ── File handling ─────────────────────────────────────────────────────────────
+  function handleFileSelect(e) { setFile(e.target.files[0]); }
+  function handleDragOver(e) { e.preventDefault(); document.getElementById("dropZone").classList.add("dragover"); }
+  function handleDragLeave(e) { document.getElementById("dropZone").classList.remove("dragover"); }
+  function handleDrop(e) {
+    e.preventDefault(); document.getElementById("dropZone").classList.remove("dragover");
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.match(/\.xlsx?$/i)) setFile(f);
+  }
+  function setFile(file) {
+    selectedFile = file;
+    document.getElementById("fileName").innerHTML =
+      `<span class="file-badge">✅ ${file.name} · ${(file.size/1024).toFixed(1)} KB</span>`;
+  }
+
+  // ── Smart Fill handlers ───────────────────────────────────────────────────────
+  function handleSmartFile(e, type) {
+    const f = e.target.files[0]; if (!f) return;
+    if (type === 'q') { smartQFile = f; document.getElementById("smartQName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
+    else              { smartCFile = f; document.getElementById("smartCName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
+  }
+  function handleDragOver2(e)  { e.preventDefault(); e.currentTarget.classList.add("dragover"); }
+  function handleDragLeave2(e) { e.currentTarget.classList.remove("dragover"); }
+  function handleDrop2(e, type) {
+    e.preventDefault(); e.currentTarget.classList.remove("dragover");
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.match(/\.xlsx?$/i)) {
+      if (type === 'q') { smartQFile = f; document.getElementById("smartQName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
+      else              { smartCFile = f; document.getElementById("smartCName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
+    }
+  }
+
+  async function runSmartFill() {
+    if (!smartQFile) { alert("Please upload the questionnaire file"); return; }
+    if (!smartCFile) { alert("Please upload the company profile file"); return; }
+    document.getElementById("smartDownloadCard").style.display = "none";
+    const btn = document.getElementById("smartBtn");
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Filling…';
+    showProgress("smartProgressWrap", "smartProgressBar");
+    setStatus("smartStatus", "⏳ Reading company profile and questionnaire…");
+    try {
+      const fd = new FormData();
+      fd.append("questionnaire", smartQFile);
+      fd.append("company_data", smartCFile);
+      const res = await fetch("/smart-fill", { method: "POST", body: fd });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Error"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      document.getElementById("smartDownloadLink").href = url;
+      document.getElementById("smartDownloadLink").download = smartQFile.name.replace(".xlsx","_filled.xlsx");
+      finishProgress("smartProgressBar", "smartProgressWrap");
+      document.getElementById("smartDownloadCard").style.display = "block";
+      document.getElementById("smartResultText").textContent = "✅ Questionnaire filled automatically based on company profile!";
+      setStatus("smartStatus", "✅ Done!");
+    } catch (err) {
+      setStatus("smartStatus", "❌ " + err.message);
+      document.getElementById("smartProgressWrap").style.display = "none";
+    } finally {
+      btn.disabled = false; btn.innerHTML = "🧠 Auto-Fill";
+    }
+  }
+
+  // ── Browser Agent ─────────────────────────────────────────────────────────────
+  async function runAgent() {
+    const task = document.getElementById("task").value.trim();
+    if (!task) { alert("Please enter a task"); return; }
+    document.getElementById("browserStepsCard").style.display = "none";
+    document.getElementById("browserResultCard").style.display = "none";
+    document.getElementById("browserStepsList").innerHTML = "";
+    const btn = document.getElementById("runBtn");
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…';
+    setStatus("browserStatus", "⏳ Agent is starting…");
+    try {
+      const res = await fetch("/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task }),
+      });
+      const data = await res.json();
+      renderSteps(data.steps || [], "browserStepsList", "browserStepsCard");
+      document.getElementById("browserResultCard").style.display = "block";
+      document.getElementById("resultText").textContent = data.result || data.error || "No result";
+      setStatus("browserStatus", "✅ Done!");
+    } catch (err) {
+      setStatus("browserStatus", "❌ " + err.message);
+    } finally {
+      btn.disabled = false; btn.innerHTML = "▶ Run Agent";
+    }
+  }
+
+  async function closeBrowser() {
+    await fetch("/close", { method: "POST" });
+    setStatus("browserStatus", "🔴 Browser closed");
+  }
+
+  // ── Excel Filler ──────────────────────────────────────────────────────────────
+  async function fillExcel() {
+    if (!selectedFile) { alert("Please select an Excel file"); return; }
+    const info = document.getElementById("companyInfo").value.trim();
+    if (!info) { alert("Please enter company details"); return; }
+    document.getElementById("excelStepsCard").style.display = "none";
+    document.getElementById("excelDownloadCard").style.display = "none";
+    document.getElementById("excelStepsList").innerHTML = "";
+    const btn = document.getElementById("excelBtn");
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Filling…';
+    showProgress("progressWrap", "progressBar");
+    setStatus("excelStatus", "⏳ Agent is reading the questionnaire…");
+    try {
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      fd.append("info", info);
+      const res = await fetch("/fill-excel", { method: "POST", body: fd });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Unknown error"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.getElementById("downloadLink");
+      link.href = url;
+      link.download = selectedFile.name.replace(".xlsx","_filled.xlsx");
+      finishProgress("progressBar", "progressWrap");
+      document.getElementById("excelDownloadCard").style.display = "block";
+      document.getElementById("excelResultText").textContent = "✅ Questionnaire filled successfully! Click below to download.";
+      setStatus("excelStatus", "✅ Done!");
+    } catch (err) {
+      setStatus("excelStatus", "❌ " + err.message);
+      document.getElementById("progressWrap").style.display = "none";
+    } finally {
+      btn.disabled = false; btn.innerHTML = "🤖 Auto-Fill Questionnaire";
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function renderSteps(steps, listId, cardId) {
+    if (!steps.length) return;
+    document.getElementById(cardId).style.display = "block";
+    steps.forEach((step, i) => {
+      const icon = TOOL_ICONS[step.tool] || "🔧";
+      const div = document.createElement("div");
+      div.className = "step";
+      div.innerHTML = `
+        <div class="step-icon">${icon}</div>
+        <div style="flex:1">
+          <div class="step-tool">${i+1}. ${step.tool}</div>
+          <div class="step-input">${JSON.stringify(step.input)}</div>
+          <div class="step-result">${step.result}</div>
+        </div>`;
+      document.getElementById(listId).appendChild(div);
+    });
+  }
+
+  function setStatus(id, msg) { document.getElementById(id).textContent = msg; }
+
+  let progressIntervals = {};
+  function showProgress(wrapId, barId) {
+    const wrap = document.getElementById(wrapId);
+    const bar  = document.getElementById(barId);
+    wrap.style.display = "block"; bar.style.width = "0%";
+    let p = 0;
+    progressIntervals[barId] = setInterval(() => {
+      p = Math.min(p + Math.random() * 3, 88);
+      bar.style.width = p + "%";
+    }, 800);
+  }
+
+  function finishProgress(barId, wrapId) {
+    clearInterval(progressIntervals[barId]);
+    const bar = document.getElementById(barId);
+    bar.style.width = "100%";
+    setTimeout(() => { document.getElementById(wrapId).style.display = "none"; }, 500);
+  }
+
+  // ── Knowledge Base ────────────────────────────────────────────────────────────
+  function handleDragOverKB(e)  { e.preventDefault(); document.getElementById("dropZoneKB").classList.add("dragover"); }
+  function handleDragLeaveKB(e) { document.getElementById("dropZoneKB").classList.remove("dragover"); }
+  function handleDropKB(e) {
+    e.preventDefault();
+    document.getElementById("dropZoneKB").classList.remove("dragover");
+    uploadKBFileList(e.dataTransfer.files);
+  }
+
+  async function uploadKBFiles(e) { uploadKBFileList(e.target.files); }
+
+  async function uploadKBFileList(files) {
+    if (!files.length) return;
+    document.getElementById("kbUploadStatus").innerHTML = `<span class="file-badge">⏳ Uploading ${files.length} file(s)…</span>`;
+    let uploaded = 0;
+    for (const file of files) {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/upload-kb", { method: "POST", body: fd });
+      if (res.ok) uploaded++;
+    }
+    document.getElementById("kbUploadStatus").innerHTML =
+      `<span class="file-badge">✅ ${uploaded} file(s) uploaded</span>`;
+    loadKBFiles();
+  }
+
+  async function loadKBFiles() {
+    const res  = await fetch("/list-kb");
+    const data = await res.json();
+    const list = document.getElementById("kbFilesList");
+    if (!data.files.length) {
+      list.innerHTML = '<span style="color:var(--text3)">No documents uploaded yet.</span>';
+      return;
+    }
+    list.innerHTML = data.files.map(f => `
+      <div class="kb-file-row">
+        <span>📄 ${f}</span>
+        <button class="kb-delete-btn" onclick="deleteKBFile('${f}')">🗑 Remove</button>
+      </div>`).join("");
+  }
+
+  async function deleteKBFile(filename) {
+    await fetch("/delete-kb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename })
+    });
+    loadKBFiles();
+  }
+
+  async function askKB() {
+    const question = document.getElementById("kbQuestion").value.trim();
+    if (!question) { alert("Please enter a question"); return; }
+    document.getElementById("kbAnswerCard").style.display = "none";
+    const btn = document.getElementById("kbAskBtn");
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Searching…';
+    showProgress("kbProgressWrap", "kbProgressBar");
+    setStatus("kbStatus", "⏳ Searching through your documents…");
+    try {
+      const res = await fetch("/ask-kb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error");
+      finishProgress("kbProgressBar", "kbProgressWrap");
+      document.getElementById("kbAnswerCard").style.display = "block";
+      document.getElementById("kbAnswerText").textContent = data.answer;
+      setStatus("kbStatus", "✅ Done!");
+    } catch (err) {
+      setStatus("kbStatus", "❌ " + err.message);
+      document.getElementById("kbProgressWrap").style.display = "none";
+    } finally {
+      btn.disabled = false; btn.innerHTML = "🔍 Ask";
+    }
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("task").addEventListener("keydown", e => {
+      if (e.ctrlKey && e.key === "Enter") runAgent();
+    });
+    document.getElementById("kbQuestion").addEventListener("keydown", e => {
+      if (e.ctrlKey && e.key === "Enter") askKB();
+    });
+    loadKBFiles();
+  });
+</script>
+</body>
+</html>
