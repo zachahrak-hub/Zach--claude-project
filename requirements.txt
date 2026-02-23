@@ -6,3 +6,4 @@ openpyxl
 PyPDF2
 python-docx
 flask-limiter
+requests

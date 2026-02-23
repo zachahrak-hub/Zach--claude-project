@@ -103,6 +103,17 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "fetch_url",
+        "description": "Quickly fetch the raw text content of a URL without a browser (fast, use for plain text files like llms.txt or simple HTML pages)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The URL to fetch"}
+            },
+            "required": ["url"],
+        },
+    },
+    {
         "name": "press_key",
         "description": "Press a keyboard key (e.g. Enter, Tab, Escape)",
         "input_schema": {
@@ -152,12 +163,18 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
         elif tool_name == "fill":
             page.fill(tool_input["selector"], tool_input["value"], timeout=8000)
             return f"✅ Filled '{tool_input['selector']}' with: {tool_input['value']}"
+        elif tool_name == "fetch_url":
+            import requests as req
+            try:
+                r = req.get(tool_input["url"], timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+                return r.text[:5000]
+            except Exception as e:
+                return f"❌ Fetch error: {str(e)}"
         elif tool_name == "get_page_content":
             try:
-                page.wait_for_load_state("networkidle", timeout=8000)
+                page.wait_for_load_state("networkidle", timeout=5000)
             except Exception:
                 pass
-            page.wait_for_timeout(2000)
             return page.inner_text("body")[:5000]
         elif tool_name == "screenshot":
             page.screenshot(path="/tmp/agent_screenshot.png")
@@ -228,18 +245,16 @@ Important rule: When the user asks ANY question about Coralogix - its products, 
 privacy, AI features, data handling, compliance, integrations, or any technical topic -
 follow this exact strategy:
 
-1. FIRST - navigate to the Coralogix LLMs.txt file (specially designed for AI reading):
-   https://coralogix.com/llms.txt
-   Use get_page_content to read it. This file contains a full index of all Coralogix docs.
+1. FIRST - use fetch_url (fast!) to read the Coralogix LLMs.txt file:
+   fetch_url: https://coralogix.com/llms.txt
+   This file is designed for AI and lists all Coralogix documentation pages.
 
-2. Based on what you find in llms.txt, navigate to the most relevant specific doc page.
-   After navigating, ALWAYS use get_page_content to read the actual page content.
+2. Based on what you find, use fetch_url on the most relevant specific doc page URL.
+   fetch_url is fast and works well for Coralogix docs pages.
 
-3. If a page returns only "Go home Copyright" with no real content, wait and try get_page_content again.
+3. If fetch_url returns very little content, try fetch_url on another relevant URL from llms.txt.
 
-4. If still no content, try navigating to:
-   https://coralogix.com/docs/user-guides/
-   and use get_page_content to find relevant links.
+4. Once you have enough information, provide your answer immediately. Do not keep browsing.
 
 5. You MUST format your final answer in a natural, professional way like this:
 
