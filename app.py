@@ -253,6 +253,32 @@ def _cx_fetch(url: str) -> str:
         return ""
 
 
+def _cx_candidate_urls(question: str, llms_text: str, top_n: int = 10) -> list:
+    """Fast keyword scan of the full index — returns top_n candidate URLs."""
+    keywords = set(re.findall(r'\b\w{3,}\b', question.lower()))
+    # Remove common stop words
+    keywords -= {"the", "has", "does", "what", "how", "is", "are", "does",
+                 "for", "and", "with", "have", "can", "its", "this", "that"}
+    scored = []
+    for line in llms_text.splitlines():
+        m = re.search(r'https?://[^\s\)]+', line)
+        if not m:
+            continue
+        url = m.group(0).rstrip('.,)')
+        score = sum(1 for kw in keywords if kw in line.lower())
+        if score > 0:
+            scored.append((score, url))
+    scored.sort(reverse=True)
+    seen, result = set(), []
+    for _, url in scored:
+        if url not in seen:
+            seen.add(url)
+            result.append(url)
+        if len(result) >= top_n:
+            break
+    return result
+
+
 def coralogix_direct_answer(question: str) -> dict:
     """Answer a Coralogix question by scraping the actual docs pages."""
     import concurrent.futures
@@ -262,31 +288,33 @@ def coralogix_direct_answer(question: str) -> dict:
     if not llms_text:
         return None
 
-    # 2. Haiku picks the best URLs (send enough of the index to cover all topics)
+    # 2. Python keyword scan of the FULL index → top 10 candidates
+    candidates = _cx_candidate_urls(question, llms_text, top_n=10)
+    if not candidates:
+        return None
+
+    # 3. Haiku picks the best 2 from the small candidate list (tiny prompt, very fast)
+    candidate_list = "\n".join(candidates)
     try:
         pick = client.messages.create(
             model="claude-3-5-haiku-20241022",
             max_tokens=200,
             messages=[{"role": "user", "content":
-                f"Find the best Coralogix docs URLs for this question.\n"
+                f"Pick the 2 most relevant URLs to answer this question.\n"
                 f"Question: \"{question}\"\n\n"
-                f"Hints:\n"
-                f"- regions/domains → 'Coralogix Domain' or 'account-settings'\n"
-                f"- pricing → billing pages\n"
-                f"- SOC 2, ISO 27001, certifications, compliance → security/compliance pages\n"
-                f"- AI/data privacy/train → privacy/security pages\n"
-                f"- AWS integrations → /integrations/aws/\n\n"
-                f"Reply with ONLY 2 URLs (https://coralogix.com/docs/...), one per line.\n\n"
-                f"INDEX:\n{llms_text[:25000]}"}],
+                f"URLs:\n{candidate_list}\n\n"
+                f"Reply with ONLY the 2 best URLs, one per line."}],
         )
     except Exception:
         return None
 
     url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
     urls = [l.strip() for l in url_text.splitlines()
-            if l.strip().startswith("https://coralogix.com/docs")][:2]
+            if l.strip().startswith("http")][:2]
+
+    # Fallback: use top 2 candidates directly if Haiku returns nothing valid
     if not urls:
-        return None
+        urls = candidates[:2]
 
     # 3. Fetch pages in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
