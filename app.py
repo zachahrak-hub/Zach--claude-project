@@ -256,40 +256,49 @@ def _cx_fetch(url: str) -> str:
 
 
 def coralogix_direct_answer(question: str) -> dict:
-    """Answer a Coralogix question — 2 Claude calls total, no agentic loop."""
+    """Answer a Coralogix question by scraping the actual docs pages."""
     import concurrent.futures, requests as req
 
-    # 1. Fetch index
+    HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+    # 1. Fetch the full docs index (118k chars — fetch it all)
     try:
-        r = req.get("https://coralogix.com/docs/llms.txt", timeout=8,
-                    headers={"User-Agent": "Mozilla/5.0"})
-        llms_text = r.text[:20000]
+        r = req.get("https://coralogix.com/docs/llms.txt", timeout=10, headers=HEADERS)
+        llms_text = r.text  # full file, no truncation
     except Exception:
         return None
 
-    # 2. Fast Haiku call: pick best URLs from index (keyword matching is unreliable)
+    # 2. Smart Haiku call: understand the question semantics, pick best URLs
     pick = client.messages.create(
         model="claude-3-5-haiku-20241022",
-        max_tokens=150,
+        max_tokens=300,
         messages=[{"role": "user", "content":
-            f"From this documentation index, pick the 1-2 best page URLs to answer the question.\n"
-            f"Reply with ONLY the URLs, one per line. No explanation.\n\n"
-            f"Question: {question}\n\nIndex:\n{llms_text}"}],
+            f"You help find the right Coralogix documentation pages.\n\n"
+            f"Question: \"{question}\"\n\n"
+            f"Important hints:\n"
+            f"- 'AWS locations', 'regions', 'domains' → look for 'Coralogix Domain' or 'account-settings'\n"
+            f"- 'pricing', 'plans' → look for billing/payment pages\n"
+            f"- 'train', 'AI', 'data privacy' → look for privacy/security pages\n"
+            f"- For AWS-specific integrations (CloudWatch, S3, etc.) → look under /integrations/aws/\n\n"
+            f"From the index below, return the 2-3 best page URLs to answer the question.\n"
+            f"Reply with ONLY the full URLs (starting with https://), one per line.\n\n"
+            f"INDEX:\n{llms_text[:30000]}"}],
     )
     url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
-    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("http")][:2]
+    urls = [l.strip() for l in url_text.splitlines()
+            if l.strip().startswith("https://coralogix.com/docs")][:3]
     if not urls:
         return None
 
-    # 3. Fetch pages in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+    # 3. Fetch all candidate pages in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
         results = list(ex.map(_cx_fetch, urls))
 
     pages = {url: content for url, content in zip(urls, results) if content.strip()}
     if not pages:
         return None
 
-    # 4. Sonnet call: write the answer
+    # 4. Sonnet: write the answer from the real page content
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
     sources = "\n".join(f"- {url}" for url in pages)
 
@@ -297,10 +306,10 @@ def coralogix_direct_answer(question: str) -> dict:
         model="claude-sonnet-4-5-20250929",
         max_tokens=1024,
         messages=[{"role": "user", "content":
-            f"Answer this question based on the Coralogix documentation below.\n\n"
+            f"Answer this question using ONLY the Coralogix documentation below.\n\n"
             f"Question: {question}\n\n"
             f"Documentation:\n{context}\n\n"
-            f"Write a clear, natural answer (2-4 paragraphs). "
+            f"Write a clear, natural answer (2-4 paragraphs) based strictly on the docs above.\n"
             f"End with:\n\n📎 Sources:\n{sources}"}],
     )
     answer = next((b.text for b in response.content if hasattr(b, "text")), "")
