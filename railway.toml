@@ -3,5 +3,5 @@ builder = "dockerfile"
 
 [deploy]
 startCommand = "python app.py"
-healthcheckPath = "/"
+healthcheckPath = "/health"
 healthcheckTimeout = 300

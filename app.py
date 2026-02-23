@@ -646,6 +646,11 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/health")
+def health():
+    return "ok", 200
+
+
 @app.route("/")
 @login_required
 def index():
