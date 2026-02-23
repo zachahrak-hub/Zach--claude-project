@@ -286,39 +286,45 @@ def coralogix_direct_answer(question: str) -> dict:
         return None
 
     url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
+    # Accept any coralogix.com URL (not just /docs)
     urls = [l.strip() for l in url_text.splitlines()
-            if l.strip().startswith("https://coralogix.com/docs")][:3]
-    if not urls:
-        return None
+            if l.strip().startswith("https://coralogix.com")][:3]
 
-    # 3. Fetch all candidate pages in parallel
-    def fetch(url):
-        try:
-            r = req.get(url, timeout=8, headers=HEADERS)
-            return r.text[:5000]
-        except Exception:
-            return ""
+    # 3. Fetch pages in parallel (if any URLs found)
+    pages = {}
+    if urls:
+        def fetch(url):
+            try:
+                r = req.get(url, timeout=8, headers=HEADERS)
+                return r.text[:5000]
+            except Exception:
+                return ""
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-        results = list(ex.map(fetch, urls))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+            results = list(ex.map(fetch, urls))
 
-    pages = {url: content for url, content in zip(urls, results) if content.strip()}
-    if not pages:
-        return None
+        pages = {url: content for url, content in zip(urls, results) if content.strip()}
 
-    # 4. Sonnet writes the final answer
-    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
-    sources = "\n".join(f"- {url}" for url in pages)
+    # 4. Answer — use docs context if available, otherwise Haiku answers from its knowledge
+    if pages:
+        context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
+        sources = "\n".join(f"- {url}" for url in pages)
+        user_msg = (f"Answer this question using the Coralogix documentation below.\n\n"
+                    f"Question: {question}\n\n"
+                    f"Documentation:\n{context}\n\n"
+                    f"Write a clear answer (2-4 paragraphs).\n"
+                    f"End with:\n\n📎 Sources:\n{sources}")
+    else:
+        # Fallback: answer from training knowledge
+        user_msg = (f"Answer this question about Coralogix based on your knowledge.\n\n"
+                    f"Question: {question}\n\n"
+                    f"Write a clear, accurate answer (2-4 paragraphs).\n"
+                    f"End with:\n\n📎 Sources:\n- https://coralogix.com/docs/")
 
     response = client.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=1024,
-        messages=[{"role": "user", "content":
-            f"Answer this question using ONLY the Coralogix documentation below.\n\n"
-            f"Question: {question}\n\n"
-            f"Documentation:\n{context}\n\n"
-            f"Write a clear, natural answer (2-4 paragraphs) based strictly on the docs above.\n"
-            f"End with:\n\n📎 Sources:\n{sources}"}],
+        messages=[{"role": "user", "content": user_msg}],
     )
     answer = next((b.text for b in response.content if hasattr(b, "text")), "")
     steps = [{"tool": "fetch_url", "input": {"url": u}, "result": "fetched"} for u in pages]
