@@ -345,7 +345,7 @@ def coralogix_direct_answer(question: str) -> dict:
 # ── Agent route (browser) ──────────────────────────────────────────────────────
 @app.route("/agent", methods=["POST"])
 @login_required
-@limiter.limit("10 per hour")
+@limiter.limit("50 per hour")
 def run_agent():
     data = request.get_json()
     task = data.get("task", "")
@@ -404,7 +404,7 @@ Meteorological Service website: https://ims.gov.il and read the data there."""
 # ── Excel agent route ──────────────────────────────────────────────────────────
 @app.route("/fill-excel", methods=["POST"])
 @login_required
-@limiter.limit("10 per hour")
+@limiter.limit("50 per hour")
 def fill_excel():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -524,7 +524,7 @@ def get_questionnaire_questions(wb: openpyxl.Workbook) -> list:
 
 @app.route("/smart-fill", methods=["POST"])
 @login_required
-@limiter.limit("10 per hour")
+@limiter.limit("50 per hour")
 def smart_fill():
     """Auto-fill an Excel questionnaire based on a company data file"""
     import time
@@ -692,7 +692,7 @@ def delete_kb():
 
 @app.route("/ask-kb", methods=["POST"])
 @login_required
-@limiter.limit("10 per hour")
+@limiter.limit("50 per hour")
 def ask_kb():
     """Answer a question using the knowledge base documents."""
     data = request.get_json()
