@@ -221,6 +221,84 @@ def execute_excel_tool(tool_name: str, tool_input: dict, wb: openpyxl.Workbook) 
     return f"❌ Unknown tool: {tool_name}"
 
 
+# ── Coralogix fast-path helpers ────────────────────────────────────────────────
+def _cx_find_urls(question: str, llms_text: str, max_urls: int = 2) -> list:
+    """Score llms.txt URLs by keyword overlap with the question."""
+    import re as _re
+    keywords = set(_re.findall(r'\b\w{4,}\b', question.lower()))
+    scored = []
+    for line in llms_text.splitlines():
+        m = _re.search(r'https?://[^\s\)]+', line)
+        if not m:
+            continue
+        url = m.group(0).rstrip('.,)')
+        score = sum(1 for kw in keywords if kw in line.lower())
+        if score > 0:
+            scored.append((score, url))
+    scored.sort(reverse=True)
+    seen, result = set(), []
+    for _, url in scored:
+        if url not in seen:
+            seen.add(url)
+            result.append(url)
+        if len(result) >= max_urls:
+            break
+    return result
+
+
+def _cx_fetch(url: str) -> str:
+    import requests as req
+    try:
+        r = req.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+        return r.text[:5000]
+    except Exception:
+        return ""
+
+
+def coralogix_direct_answer(question: str) -> dict:
+    """Answer a Coralogix question without an agentic loop — fast single API call."""
+    import concurrent.futures, requests as req
+
+    # 1. Fetch index
+    try:
+        r = req.get("https://coralogix.com/llms.txt", timeout=8,
+                    headers={"User-Agent": "Mozilla/5.0"})
+        llms_text = r.text[:6000]
+    except Exception:
+        return None
+
+    # 2. Find best URLs by keyword match
+    urls = _cx_find_urls(question, llms_text, max_urls=2)
+    if not urls:
+        return None
+
+    # 3. Fetch pages in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+        results = list(ex.map(_cx_fetch, urls))
+
+    pages = {url: content for url, content in zip(urls, results) if content.strip()}
+    if not pages:
+        return None
+
+    # 4. Single Claude call — no loop
+    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
+    sources = "\n".join(f"- {url}" for url in pages)
+
+    response = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=1024,
+        messages=[{"role": "user", "content":
+            f"Answer this question based on the Coralogix documentation below.\n\n"
+            f"Question: {question}\n\n"
+            f"Documentation:\n{context}\n\n"
+            f"Write a clear, natural answer (2-4 paragraphs). "
+            f"End your answer with exactly:\n\n📎 Sources:\n{sources}"}],
+    )
+    answer = next((b.text for b in response.content if hasattr(b, "text")), "")
+    steps = [{"tool": "fetch_url", "input": {"url": u}, "result": "fetched"} for u in pages]
+    return {"result": answer, "steps": steps}
+
+
 # ── Agent route (browser) ──────────────────────────────────────────────────────
 @app.route("/agent", methods=["POST"])
 @login_required
@@ -231,64 +309,24 @@ def run_agent():
     if not task:
         return jsonify({"error": "No task received"}), 400
 
+    # Fast path: Coralogix questions answered without agentic loop
+    cx_keywords = ["coralogix"]
+    if any(kw in task.lower() for kw in cx_keywords):
+        result = coralogix_direct_answer(task)
+        if result:
+            return jsonify(result)
+
+    # Standard agentic loop for everything else
+    messages = [{"role": "user", "content": task}]
     steps = []
-
-    # Pre-fetch Coralogix llms.txt to save 1-2 API round trips
-    coralogix_index = ""
-    coralogix_keywords = ["coralogix", "cx logging", "observability", "log management"]
-    if any(kw in task.lower() for kw in coralogix_keywords):
-        try:
-            import requests as req
-            r = req.get("https://coralogix.com/llms.txt", timeout=8,
-                        headers={"User-Agent": "Mozilla/5.0"})
-            coralogix_index = r.text[:4000]
-        except Exception:
-            pass
-
-    if coralogix_index:
-        user_content = (
-            f"{task}\n\n"
-            f"[Coralogix documentation index — already fetched for you]\n"
-            f"{coralogix_index}"
-        )
-    else:
-        user_content = task
-
-    messages = [{"role": "user", "content": user_content}]
 
     system_prompt = """You are an AI assistant that performs browser tasks.
 
-Important rule: When the user asks about weather, weather forecast, temperature, rain, wind,
-or any weather-related topic in Israel - always navigate first to the Israeli Meteorological
-Service website: https://ims.gov.il
-Read the information from there and provide an answer based on the official data.
+When the user asks about weather, weather forecast, temperature, rain, wind,
+or any weather-related topic in Israel - always navigate first to the Israeli
+Meteorological Service website: https://ims.gov.il and read the data there."""
 
-Important rule: When the user asks ANY question about Coralogix - its products, security,
-privacy, AI features, data handling, compliance, integrations, or any technical topic:
-
-If the user message already contains a Coralogix documentation index (llms.txt), skip fetching
-it again. Go directly to:
-
-STEP 1 — Pick the most relevant URL from the index provided and use fetch_url on it immediately.
-The index only has short titles — the actual doc page has the real content you need.
-
-STEP 2 — If the first page didn't fully answer the question, fetch one more relevant URL.
-
-STEP 3 — Write your answer naturally and in full detail based on what you read.
-Format it like this:
-
-[Your detailed answer here, written naturally as if explaining to a knowledgeable colleague.
-Use full sentences and paragraphs. Include specific details from the docs you read.]
-
-📎 Sources:
-- [full URL of each doc page you actually read]
-
-Rules:
-- NEVER answer based only on the index titles — always fetch and read at least one actual doc page
-- Base your answer strictly on what the official Coralogix docs say
-- Write naturally, not as a numbered list of steps"""
-
-    for _ in range(30):
+    for _ in range(20):
         response = client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=2048,
