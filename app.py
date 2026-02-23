@@ -262,7 +262,7 @@ def coralogix_direct_answer(question: str) -> dict:
     if not llms_text:
         return None
 
-    # 2. Haiku picks the best URLs (truncate index to 15k to keep it fast)
+    # 2. Haiku picks the best URLs (send enough of the index to cover all topics)
     try:
         pick = client.messages.create(
             model="claude-3-5-haiku-20241022",
@@ -273,10 +273,11 @@ def coralogix_direct_answer(question: str) -> dict:
                 f"Hints:\n"
                 f"- regions/domains → 'Coralogix Domain' or 'account-settings'\n"
                 f"- pricing → billing pages\n"
-                f"- AI/data privacy → privacy/security pages\n"
+                f"- SOC 2, ISO 27001, certifications, compliance → security/compliance pages\n"
+                f"- AI/data privacy/train → privacy/security pages\n"
                 f"- AWS integrations → /integrations/aws/\n\n"
                 f"Reply with ONLY 2 URLs (https://coralogix.com/docs/...), one per line.\n\n"
-                f"INDEX:\n{llms_text[:15000]}"}],
+                f"INDEX:\n{llms_text[:50000]}"}],
         )
     except Exception:
         return None
