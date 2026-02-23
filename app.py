@@ -277,7 +277,7 @@ def coralogix_direct_answer(question: str) -> dict:
                 f"- AI/data privacy/train → privacy/security pages\n"
                 f"- AWS integrations → /integrations/aws/\n\n"
                 f"Reply with ONLY 2 URLs (https://coralogix.com/docs/...), one per line.\n\n"
-                f"INDEX:\n{llms_text[:50000]}"}],
+                f"INDEX:\n{llms_text[:25000]}"}],
         )
     except Exception:
         return None
@@ -331,8 +331,9 @@ def run_agent():
             result = coralogix_direct_answer(task)
             if result:
                 return jsonify(result)
-        except Exception:
-            pass  # fall through to agentic loop on any error
+            return jsonify({"result": "Could not find a relevant answer in the Coralogix documentation. Please try rephrasing your question.", "steps": []})
+        except Exception as e:
+            return jsonify({"result": f"Error while searching Coralogix docs: {str(e)}", "steps": []})
 
     # Standard agentic loop for everything else
     messages = [{"role": "user", "content": task}]
