@@ -231,8 +231,30 @@ def run_agent():
     if not task:
         return jsonify({"error": "No task received"}), 400
 
-    messages = [{"role": "user", "content": task}]
     steps = []
+
+    # Pre-fetch Coralogix llms.txt to save 1-2 API round trips
+    coralogix_index = ""
+    coralogix_keywords = ["coralogix", "cx logging", "observability", "log management"]
+    if any(kw in task.lower() for kw in coralogix_keywords):
+        try:
+            import requests as req
+            r = req.get("https://coralogix.com/llms.txt", timeout=8,
+                        headers={"User-Agent": "Mozilla/5.0"})
+            coralogix_index = r.text[:4000]
+        except Exception:
+            pass
+
+    if coralogix_index:
+        user_content = (
+            f"{task}\n\n"
+            f"[Coralogix documentation index — already fetched for you]\n"
+            f"{coralogix_index}"
+        )
+    else:
+        user_content = task
+
+    messages = [{"role": "user", "content": user_content}]
 
     system_prompt = """You are an AI assistant that performs browser tasks.
 
@@ -242,22 +264,17 @@ Service website: https://ims.gov.il
 Read the information from there and provide an answer based on the official data.
 
 Important rule: When the user asks ANY question about Coralogix - its products, security,
-privacy, AI features, data handling, compliance, integrations, or any technical topic -
-follow these steps IN ORDER, never skip any step:
+privacy, AI features, data handling, compliance, integrations, or any technical topic:
 
-STEP 1 — Find relevant pages:
-Use fetch_url to read: https://coralogix.com/llms.txt
-This lists all Coralogix documentation pages. Scan it to find the 1-2 most relevant page URLs.
+If the user message already contains a Coralogix documentation index (llms.txt), skip fetching
+it again. Go directly to:
 
-STEP 2 — Read the actual doc page (MANDATORY, never skip):
-Use fetch_url on the specific doc page URL you found. Do NOT answer based only on llms.txt —
-it only contains short titles, not real content. You MUST read the actual page content.
+STEP 1 — Pick the most relevant URL from the index provided and use fetch_url on it immediately.
+The index only has short titles — the actual doc page has the real content you need.
 
-STEP 3 — If needed, fetch one more page:
-If the first page didn't fully answer the question, fetch one more relevant URL from llms.txt.
+STEP 2 — If the first page didn't fully answer the question, fetch one more relevant URL.
 
-STEP 4 — Write your answer:
-Only after reading actual doc page content, write a clear, natural, detailed answer.
+STEP 3 — Write your answer naturally and in full detail based on what you read.
 Format it like this:
 
 [Your detailed answer here, written naturally as if explaining to a knowledgeable colleague.
@@ -267,7 +284,7 @@ Use full sentences and paragraphs. Include specific details from the docs you re
 - [full URL of each doc page you actually read]
 
 Rules:
-- NEVER answer based only on llms.txt — always fetch and read at least one actual doc page first
+- NEVER answer based only on the index titles — always fetch and read at least one actual doc page
 - Base your answer strictly on what the official Coralogix docs say
 - Write naturally, not as a numbered list of steps"""
 
