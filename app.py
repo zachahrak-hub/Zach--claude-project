@@ -223,27 +223,32 @@ Important rule: When the user asks ANY question about Coralogix - its products, 
 privacy, AI features, data handling, compliance, integrations, or any technical topic -
 follow this exact strategy:
 
-1. Navigate to Google with a Coralogix Docs specific search:
-   https://www.google.com/search?q=site:coralogix.com/docs/+<keywords from the question>
-   Example: https://www.google.com/search?q=site:coralogix.com/docs/+AI+customer+data+privacy
+1. First, navigate directly to the Coralogix docs homepage:
+   https://coralogix.com/docs/
 
-2. Click on the most relevant coralogix.com/docs/ link from the results.
+2. Then navigate to a DuckDuckGo search with Coralogix docs specific terms:
+   https://duckduckgo.com/?q=site:coralogix.com+<keywords from the question>
+   Example: https://duckduckgo.com/?q=site:coralogix.com+AI+customer+data+training
 
-3. Read the page content carefully and extract the relevant answer.
+3. Read the search results page content to find relevant links.
 
-4. If the first page is not sufficient, go back and click another result or refine the search.
+4. Navigate to the most relevant coralogix.com/docs/ link.
 
-5. You MUST format your final answer exactly like this:
+5. Use get_page_content to read the page and extract the relevant answer.
+
+6. If the page content is insufficient, try another link or search with different keywords.
+
+7. You MUST format your final answer exactly like this:
 
 [Your detailed answer based on what you found]
 
 📎 Sources:
-- [full URL of each Coralogix docs page you visited]
+- [full URL of each Coralogix page you visited and used]
 
-Always base your response strictly on what you find on the official Coralogix documentation pages.
+Always base your response strictly on what you find on the official Coralogix pages.
 Never guess or make up information — only use what is written in the docs."""
 
-    for _ in range(20):
+    for _ in range(30):
         response = client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=2048,
