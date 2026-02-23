@@ -219,16 +219,29 @@ or any weather-related topic in Israel - always navigate first to the Israeli Me
 Service website: https://ims.gov.il
 Read the information from there and provide an answer based on the official data.
 
-Important rule: When the user asks a professional question about Coralogix - its products,
-security, privacy, AI features, data handling, compliance, integrations, or any technical topic -
-use this exact strategy to find the answer:
-1. Navigate to Google: https://www.google.com/search?q=site:coralogix.com+<keywords from the question>
-   For example, for a question about AI and customer logs, navigate to:
-   https://www.google.com/search?q=site:coralogix.com+AI+customer+logs+privacy
-2. Read the search results and click on the most relevant link (coralogix.com/docs or coralogix.com/blog etc.)
-3. Read the page content and extract the relevant answer.
-4. If the first result is not useful, try another result or refine the search query.
-Always base your response on what you find on the official Coralogix pages."""
+Important rule: When the user asks ANY question about Coralogix - its products, security,
+privacy, AI features, data handling, compliance, integrations, or any technical topic -
+follow this exact strategy:
+
+1. Navigate to Google with a Coralogix Docs specific search:
+   https://www.google.com/search?q=site:coralogix.com/docs/+<keywords from the question>
+   Example: https://www.google.com/search?q=site:coralogix.com/docs/+AI+customer+data+privacy
+
+2. Click on the most relevant coralogix.com/docs/ link from the results.
+
+3. Read the page content carefully and extract the relevant answer.
+
+4. If the first page is not sufficient, go back and click another result or refine the search.
+
+5. You MUST format your final answer exactly like this:
+
+[Your detailed answer based on what you found]
+
+📎 Sources:
+- [full URL of each Coralogix docs page you visited]
+
+Always base your response strictly on what you find on the official Coralogix documentation pages.
+Never guess or make up information — only use what is written in the docs."""
 
     for _ in range(20):
         response = client.messages.create(

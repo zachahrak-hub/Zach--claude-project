@@ -441,6 +441,30 @@
 
     .kb-delete-btn:hover { background: rgba(239,68,68,.15); }
 
+    /* ── Sources ─────────────────────────────────────────── */
+    .source-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      font-size: .83rem;
+      color: var(--accent2);
+      text-decoration: none;
+      transition: background .15s, border-color .15s;
+      word-break: break-all;
+    }
+
+    .source-link:hover {
+      background: rgba(14,165,233,.07);
+      border-color: var(--accent);
+    }
+
+    .source-icon { font-size: 14px; flex-shrink: 0; }
+
     /* ── Divider ─────────────────────────────────────────── */
     .divider { height: 1px; background: var(--border); margin: 18px 0; }
 
@@ -515,6 +539,11 @@
       <div class="card" id="browserResultCard" style="display:none">
         <div class="section-label" style="margin-bottom:12px;">Final Result</div>
         <div class="result-block result-success" id="resultText"></div>
+      </div>
+
+    <div class="card" id="browserSourcesCard" style="display:none">
+        <div class="section-label" style="margin-bottom:12px;">📎 Sources</div>
+        <div id="sourcesList"></div>
       </div>
     </div>
 
@@ -744,7 +773,9 @@ Insurance: ..."></textarea>
     if (!task) { alert("Please enter a task"); return; }
     document.getElementById("browserStepsCard").style.display = "none";
     document.getElementById("browserResultCard").style.display = "none";
+    document.getElementById("browserSourcesCard").style.display = "none";
     document.getElementById("browserStepsList").innerHTML = "";
+    document.getElementById("sourcesList").innerHTML = "";
     const btn = document.getElementById("runBtn");
     btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…';
     setStatus("browserStatus", "⏳ Agent is starting…");
@@ -756,13 +787,41 @@ Insurance: ..."></textarea>
       });
       const data = await res.json();
       renderSteps(data.steps || [], "browserStepsList", "browserStepsCard");
-      document.getElementById("browserResultCard").style.display = "block";
-      document.getElementById("resultText").textContent = data.result || data.error || "No result";
+      const fullText = data.result || data.error || "No result";
+      renderResultWithSources(fullText);
       setStatus("browserStatus", "✅ Done!");
     } catch (err) {
       setStatus("browserStatus", "❌ " + err.message);
     } finally {
       btn.disabled = false; btn.innerHTML = "▶ Run Agent";
+    }
+  }
+
+  function renderResultWithSources(text) {
+    const parts = text.split('📎 Sources:');
+    const answer = parts[0].trim();
+    const sourcesRaw = parts[1] ? parts[1].trim() : null;
+
+    document.getElementById("browserResultCard").style.display = "block";
+    document.getElementById("resultText").textContent = answer;
+
+    if (sourcesRaw) {
+      const urls = sourcesRaw.split('\n')
+        .map(l => l.replace(/^[-•*]\s*/, '').trim())
+        .filter(l => l.startsWith('http'));
+
+      if (urls.length > 0) {
+        const list = document.getElementById("sourcesList");
+        list.innerHTML = urls.map(url => {
+          const display = url.replace('https://', '').replace('http://', '');
+          return `<a class="source-link" href="${url}" target="_blank" rel="noopener">
+            <span class="source-icon">📄</span>
+            <span>${display}</span>
+            <span style="margin-left:auto;font-size:11px;opacity:.5;">↗</span>
+          </a>`;
+        }).join('');
+        document.getElementById("browserSourcesCard").style.display = "block";
+      }
     }
   }
 
