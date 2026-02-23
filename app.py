@@ -290,20 +290,27 @@ def coralogix_direct_answer(question: str) -> dict:
 
     # 2. Python keyword scan of the FULL index → top 10 candidates
     candidates = _cx_candidate_urls(question, llms_text, top_n=10)
-    if not candidates:
-        return None
 
-    # 3. Haiku picks the best 2 from the small candidate list (tiny prompt, very fast)
-    candidate_list = "\n".join(candidates)
+    # 3. Haiku picks the best 2 URLs
+    if candidates:
+        # Fast path: small prompt with only keyword-matched candidates
+        prompt_index = "\n".join(candidates)
+        prompt = (f"Pick the 2 most relevant URLs to answer this question.\n"
+                  f"Question: \"{question}\"\n\n"
+                  f"URLs:\n{prompt_index}\n\n"
+                  f"Reply with ONLY the 2 best URLs, one per line.")
+    else:
+        # Fallback: send a portion of the full index when keyword scan finds nothing
+        prompt = (f"Find the 2 best Coralogix docs URLs for this question.\n"
+                  f"Question: \"{question}\"\n\n"
+                  f"Reply with ONLY 2 URLs (https://coralogix.com/docs/...), one per line.\n\n"
+                  f"INDEX:\n{llms_text[:20000]}")
+
     try:
         pick = client.messages.create(
             model="claude-3-5-haiku-20241022",
             max_tokens=200,
-            messages=[{"role": "user", "content":
-                f"Pick the 2 most relevant URLs to answer this question.\n"
-                f"Question: \"{question}\"\n\n"
-                f"URLs:\n{candidate_list}\n\n"
-                f"Reply with ONLY the 2 best URLs, one per line."}],
+            messages=[{"role": "user", "content": prompt}],
         )
     except Exception:
         return None
@@ -312,9 +319,12 @@ def coralogix_direct_answer(question: str) -> dict:
     urls = [l.strip() for l in url_text.splitlines()
             if l.strip().startswith("http")][:2]
 
-    # Fallback: use top 2 candidates directly if Haiku returns nothing valid
-    if not urls:
+    # Last resort: use top 2 keyword candidates if Haiku returns nothing
+    if not urls and candidates:
         urls = candidates[:2]
+
+    if not urls:
+        return None
 
     # 3. Fetch pages in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
