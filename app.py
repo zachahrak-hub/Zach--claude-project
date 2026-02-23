@@ -222,98 +222,91 @@ def execute_excel_tool(tool_name: str, tool_input: dict, wb: openpyxl.Workbook) 
 
 
 # ── Coralogix fast-path helpers ────────────────────────────────────────────────
-def _cx_find_urls(question: str, llms_text: str, max_urls: int = 2) -> list:
-    """Score llms.txt URLs by keyword overlap with the question."""
-    import re as _re
-    keywords = set(_re.findall(r'\b\w{4,}\b', question.lower()))
-    scored = []
-    for line in llms_text.splitlines():
-        m = _re.search(r'https?://[^\s\)]+', line)
-        if not m:
-            continue
-        url = m.group(0).rstrip('.,)')
-        score = sum(1 for kw in keywords if kw in line.lower())
-        if score > 0:
-            scored.append((score, url))
-    scored.sort(reverse=True)
-    seen, result = set(), []
-    for _, url in scored:
-        if url not in seen:
-            seen.add(url)
-            result.append(url)
-        if len(result) >= max_urls:
-            break
-    return result
+import time as _time
+
+_llms_cache = {"text": None, "ts": 0}
+_LLMS_TTL = 3600  # cache llms.txt for 1 hour
+
+
+def _get_llms_txt() -> str:
+    """Return cached llms.txt, re-fetching only if older than 1 hour."""
+    import requests as req
+    now = _time.time()
+    if _llms_cache["text"] and (now - _llms_cache["ts"]) < _LLMS_TTL:
+        return _llms_cache["text"]
+    try:
+        r = req.get("https://coralogix.com/docs/llms.txt", timeout=10,
+                    headers={"User-Agent": "Mozilla/5.0"})
+        _llms_cache["text"] = r.text
+        _llms_cache["ts"] = now
+        return r.text
+    except Exception:
+        return _llms_cache["text"] or ""
 
 
 def _cx_fetch(url: str) -> str:
     import requests as req
     try:
         r = req.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
-        return r.text[:5000]
+        return r.text[:3000]
     except Exception:
         return ""
 
 
 def coralogix_direct_answer(question: str) -> dict:
     """Answer a Coralogix question by scraping the actual docs pages."""
-    import concurrent.futures, requests as req
+    import concurrent.futures
 
-    HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-    # 1. Fetch the full docs index (118k chars — fetch it all)
-    try:
-        r = req.get("https://coralogix.com/docs/llms.txt", timeout=10, headers=HEADERS)
-        llms_text = r.text  # full file, no truncation
-    except Exception:
+    # 1. Get docs index (cached — no network hit after first request)
+    llms_text = _get_llms_txt()
+    if not llms_text:
         return None
 
-    # 2. Smart Haiku call: understand the question semantics, pick best URLs
+    # 2. Haiku picks the best URLs (truncate index to 15k to keep it fast)
     try:
         pick = client.messages.create(
             model="claude-3-5-haiku-20241022",
-            max_tokens=300,
+            max_tokens=200,
             messages=[{"role": "user", "content":
-                f"You help find the right Coralogix documentation pages.\n\n"
+                f"Find the best Coralogix docs URLs for this question.\n"
                 f"Question: \"{question}\"\n\n"
-                f"Important hints:\n"
-                f"- 'AWS locations', 'regions', 'domains' → look for 'Coralogix Domain' or 'account-settings'\n"
-                f"- 'pricing', 'plans' → look for billing/payment pages\n"
-                f"- 'train', 'AI', 'data privacy' → look for privacy/security pages\n"
-                f"- For AWS-specific integrations (CloudWatch, S3, etc.) → look under /integrations/aws/\n\n"
-                f"From the index below, return the 2-3 best page URLs to answer the question.\n"
-                f"Reply with ONLY the full URLs (starting with https://), one per line.\n\n"
-                f"INDEX:\n{llms_text[:30000]}"}],
+                f"Hints:\n"
+                f"- regions/domains → 'Coralogix Domain' or 'account-settings'\n"
+                f"- pricing → billing pages\n"
+                f"- AI/data privacy → privacy/security pages\n"
+                f"- AWS integrations → /integrations/aws/\n\n"
+                f"Reply with ONLY 2 URLs (https://coralogix.com/docs/...), one per line.\n\n"
+                f"INDEX:\n{llms_text[:15000]}"}],
         )
     except Exception:
         return None
+
     url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
     urls = [l.strip() for l in url_text.splitlines()
-            if l.strip().startswith("https://coralogix.com/docs")][:3]
+            if l.strip().startswith("https://coralogix.com/docs")][:2]
     if not urls:
         return None
 
-    # 3. Fetch all candidate pages in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+    # 3. Fetch pages in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
         results = list(ex.map(_cx_fetch, urls))
 
     pages = {url: content for url, content in zip(urls, results) if content.strip()}
     if not pages:
         return None
 
-    # 4. Sonnet: write the answer from the real page content
+    # 4. Haiku writes the answer (fast, sufficient for factual doc lookup)
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
     sources = "\n".join(f"- {url}" for url in pages)
 
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=1024,
+        model="claude-3-5-haiku-20241022",
+        max_tokens=600,
         messages=[{"role": "user", "content":
-            f"Answer this question using ONLY the Coralogix documentation below.\n\n"
+            f"Answer using ONLY the Coralogix docs below.\n"
             f"Question: {question}\n\n"
-            f"Documentation:\n{context}\n\n"
-            f"Write a clear, natural answer (2-4 paragraphs) based strictly on the docs above.\n"
-            f"End with:\n\n📎 Sources:\n{sources}"}],
+            f"Docs:\n{context}\n\n"
+            f"Write a clear answer (2-3 paragraphs). End with:\n\n📎 Sources:\n{sources}"}],
     )
     answer = next((b.text for b in response.content if hasattr(b, "text")), "")
     steps = [{"tool": "fetch_url", "input": {"url": u}, "result": "fetched"} for u in pages]
