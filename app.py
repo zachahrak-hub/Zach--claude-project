@@ -269,21 +269,24 @@ def coralogix_direct_answer(question: str) -> dict:
         return None
 
     # 2. Smart Haiku call: understand the question semantics, pick best URLs
-    pick = client.messages.create(
-        model="claude-3-5-haiku-20241022",
-        max_tokens=300,
-        messages=[{"role": "user", "content":
-            f"You help find the right Coralogix documentation pages.\n\n"
-            f"Question: \"{question}\"\n\n"
-            f"Important hints:\n"
-            f"- 'AWS locations', 'regions', 'domains' → look for 'Coralogix Domain' or 'account-settings'\n"
-            f"- 'pricing', 'plans' → look for billing/payment pages\n"
-            f"- 'train', 'AI', 'data privacy' → look for privacy/security pages\n"
-            f"- For AWS-specific integrations (CloudWatch, S3, etc.) → look under /integrations/aws/\n\n"
-            f"From the index below, return the 2-3 best page URLs to answer the question.\n"
-            f"Reply with ONLY the full URLs (starting with https://), one per line.\n\n"
-            f"INDEX:\n{llms_text[:30000]}"}],
-    )
+    try:
+        pick = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=300,
+            messages=[{"role": "user", "content":
+                f"You help find the right Coralogix documentation pages.\n\n"
+                f"Question: \"{question}\"\n\n"
+                f"Important hints:\n"
+                f"- 'AWS locations', 'regions', 'domains' → look for 'Coralogix Domain' or 'account-settings'\n"
+                f"- 'pricing', 'plans' → look for billing/payment pages\n"
+                f"- 'train', 'AI', 'data privacy' → look for privacy/security pages\n"
+                f"- For AWS-specific integrations (CloudWatch, S3, etc.) → look under /integrations/aws/\n\n"
+                f"From the index below, return the 2-3 best page URLs to answer the question.\n"
+                f"Reply with ONLY the full URLs (starting with https://), one per line.\n\n"
+                f"INDEX:\n{llms_text[:30000]}"}],
+        )
+    except Exception:
+        return None
     url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
     urls = [l.strip() for l in url_text.splitlines()
             if l.strip().startswith("https://coralogix.com/docs")][:3]
@@ -330,9 +333,12 @@ def run_agent():
     # Fast path: Coralogix questions answered without agentic loop
     cx_keywords = ["coralogix"]
     if any(kw in task.lower() for kw in cx_keywords):
-        result = coralogix_direct_answer(task)
-        if result:
-            return jsonify(result)
+        try:
+            result = coralogix_direct_answer(task)
+            if result:
+                return jsonify(result)
+        except Exception:
+            pass  # fall through to agentic loop on any error
 
     # Standard agentic loop for everything else
     messages = [{"role": "user", "content": task}]
@@ -344,27 +350,30 @@ When the user asks about weather, weather forecast, temperature, rain, wind,
 or any weather-related topic in Israel - always navigate first to the Israeli
 Meteorological Service website: https://ims.gov.il and read the data there."""
 
-    for _ in range(20):
-        response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=2048,
-            system=system_prompt,
-            tools=TOOLS,
-            messages=messages,
-        )
+    try:
+        for _ in range(20):
+            response = client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=2048,
+                system=system_prompt,
+                tools=TOOLS,
+                messages=messages,
+            )
 
-        if response.stop_reason == "tool_use":
-            tool_block = next(b for b in response.content if b.type == "tool_use")
-            result = execute_tool(tool_block.name, tool_block.input)
-            steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({
-                "role": "user",
-                "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}],
-            })
-        else:
-            final_text = next((b.text for b in response.content if hasattr(b, "text")), "")
-            return jsonify({"result": final_text, "steps": steps})
+            if response.stop_reason == "tool_use":
+                tool_block = next(b for b in response.content if b.type == "tool_use")
+                result = execute_tool(tool_block.name, tool_block.input)
+                steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({
+                    "role": "user",
+                    "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}],
+                })
+            else:
+                final_text = next((b.text for b in response.content if hasattr(b, "text")), "")
+                return jsonify({"result": final_text, "steps": steps})
+    except Exception as e:
+        return jsonify({"result": f"Error: {str(e)}", "steps": steps})
 
     return jsonify({"result": "Reached iteration limit", "steps": steps})
 
