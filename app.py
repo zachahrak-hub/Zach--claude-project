@@ -256,19 +256,28 @@ def _cx_fetch(url: str) -> str:
 
 
 def coralogix_direct_answer(question: str) -> dict:
-    """Answer a Coralogix question without an agentic loop — fast single API call."""
+    """Answer a Coralogix question — 2 Claude calls total, no agentic loop."""
     import concurrent.futures, requests as req
 
-    # 1. Fetch index (correct URL is /docs/llms.txt)
+    # 1. Fetch index
     try:
         r = req.get("https://coralogix.com/docs/llms.txt", timeout=8,
                     headers={"User-Agent": "Mozilla/5.0"})
-        llms_text = r.text[:20000]  # large index, need more chars
+        llms_text = r.text[:20000]
     except Exception:
         return None
 
-    # 2. Find best URLs by keyword match
-    urls = _cx_find_urls(question, llms_text, max_urls=2)
+    # 2. Fast Haiku call: pick best URLs from index (keyword matching is unreliable)
+    pick = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=150,
+        messages=[{"role": "user", "content":
+            f"From this documentation index, pick the 1-2 best page URLs to answer the question.\n"
+            f"Reply with ONLY the URLs, one per line. No explanation.\n\n"
+            f"Question: {question}\n\nIndex:\n{llms_text}"}],
+    )
+    url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
+    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("http")][:2]
     if not urls:
         return None
 
@@ -280,7 +289,7 @@ def coralogix_direct_answer(question: str) -> dict:
     if not pages:
         return None
 
-    # 4. Single Claude call — no loop
+    # 4. Sonnet call: write the answer
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
     sources = "\n".join(f"- {url}" for url in pages)
 
@@ -292,7 +301,7 @@ def coralogix_direct_answer(question: str) -> dict:
             f"Question: {question}\n\n"
             f"Documentation:\n{context}\n\n"
             f"Write a clear, natural answer (2-4 paragraphs). "
-            f"End your answer with exactly:\n\n📎 Sources:\n{sources}"}],
+            f"End with:\n\n📎 Sources:\n{sources}"}],
     )
     answer = next((b.text for b in response.content if hasattr(b, "text")), "")
     steps = [{"tool": "fetch_url", "input": {"url": u}, "result": "fetched"} for u in pages]
