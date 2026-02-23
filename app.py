@@ -254,69 +254,55 @@ def _cx_fetch(url: str) -> str:
 
 
 def coralogix_direct_answer(question: str) -> dict:
-    """Answer a Coralogix question by scraping the actual docs pages."""
+    """Answer a Coralogix question. Never returns None — always gives an answer."""
     import concurrent.futures, requests as req
 
     HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-    # 1. Get docs index (cached — no network hit after first request)
-    llms_text = _get_llms_txt()
-    if not llms_text:
-        return None
-
-    # 2. Haiku picks the best URLs from the index
-    try:
-        pick = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=300,
-            messages=[{"role": "user", "content":
-                f"You help find the right Coralogix documentation pages.\n\n"
-                f"Question: \"{question}\"\n\n"
-                f"Hints:\n"
-                f"- regions/domains/AWS locations → 'Coralogix Domain' or 'account-settings'\n"
-                f"- pricing/plans → billing pages\n"
-                f"- SOC 2, ISO 27001, certifications, compliance, security measures → security/compliance pages\n"
-                f"- AI/data privacy/train → privacy/security pages\n"
-                f"- AWS integrations → /integrations/aws/\n\n"
-                f"From the index below, return the 2-3 best page URLs to answer the question.\n"
-                f"Reply with ONLY the full URLs (starting with https://), one per line.\n\n"
-                f"INDEX:\n{llms_text[:30000]}"}],
-        )
-    except Exception:
-        return None
-
-    url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
-    # Accept any coralogix.com URL (not just /docs)
-    urls = [l.strip() for l in url_text.splitlines()
-            if l.strip().startswith("https://coralogix.com")][:3]
-
-    # 3. Fetch pages in parallel (if any URLs found)
     pages = {}
-    if urls:
-        def fetch(url):
-            try:
-                r = req.get(url, timeout=8, headers=HEADERS)
-                return r.text[:5000]
-            except Exception:
-                return ""
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-            results = list(ex.map(fetch, urls))
+    # 1. Try to find and fetch relevant docs pages
+    try:
+        llms_text = _get_llms_txt()
+        if llms_text:
+            pick = client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=300,
+                messages=[{"role": "user", "content":
+                    f"Find the best Coralogix docs URLs for this question.\n"
+                    f"Question: \"{question}\"\n\n"
+                    f"Hints: SOC2/ISO/certifications → security pages, "
+                    f"AWS → integrations/aws, privacy/AI → privacy pages.\n\n"
+                    f"Reply with ONLY 2-3 URLs starting with https://, one per line.\n\n"
+                    f"INDEX:\n{llms_text[:30000]}"}],
+            )
+            url_text = next((b.text for b in pick.content if hasattr(b, "text")), "")
+            urls = [l.strip() for l in url_text.splitlines()
+                    if l.strip().startswith("https://coralogix.com")][:3]
 
-        pages = {url: content for url, content in zip(urls, results) if content.strip()}
+            if urls:
+                def fetch(url):
+                    try:
+                        r = req.get(url, timeout=8, headers=HEADERS)
+                        return r.text[:5000]
+                    except Exception:
+                        return ""
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+                    results = list(ex.map(fetch, urls))
+                pages = {url: c for url, c in zip(urls, results) if c.strip()}
+    except Exception:
+        pass  # Fall through to knowledge-based answer
 
-    # 4. Answer — use docs context if available, otherwise Haiku answers from its knowledge
+    # 2. Build answer — from docs if available, from training knowledge otherwise
     if pages:
-        context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
+        context = "\n\n".join(f"=== {url} ===\n{c}" for url, c in pages.items())
         sources = "\n".join(f"- {url}" for url in pages)
-        user_msg = (f"Answer this question using the Coralogix documentation below.\n\n"
+        user_msg = (f"Answer this question using the Coralogix docs below.\n"
                     f"Question: {question}\n\n"
-                    f"Documentation:\n{context}\n\n"
+                    f"Docs:\n{context}\n\n"
                     f"Write a clear answer (2-4 paragraphs).\n"
                     f"End with:\n\n📎 Sources:\n{sources}")
     else:
-        # Fallback: answer from training knowledge
-        user_msg = (f"Answer this question about Coralogix based on your knowledge.\n\n"
+        user_msg = (f"Answer this question about Coralogix based on your knowledge.\n"
                     f"Question: {question}\n\n"
                     f"Write a clear, accurate answer (2-4 paragraphs).\n"
                     f"End with:\n\n📎 Sources:\n- https://coralogix.com/docs/")
