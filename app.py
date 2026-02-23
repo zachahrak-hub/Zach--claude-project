@@ -153,7 +153,12 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
             page.fill(tool_input["selector"], tool_input["value"], timeout=8000)
             return f"✅ Filled '{tool_input['selector']}' with: {tool_input['value']}"
         elif tool_name == "get_page_content":
-            return page.inner_text("body")[:3000]
+            try:
+                page.wait_for_load_state("networkidle", timeout=8000)
+            except Exception:
+                pass
+            page.wait_for_timeout(2000)
+            return page.inner_text("body")[:5000]
         elif tool_name == "screenshot":
             page.screenshot(path="/tmp/agent_screenshot.png")
             return "✅ Screenshot saved"
@@ -223,30 +228,28 @@ Important rule: When the user asks ANY question about Coralogix - its products, 
 privacy, AI features, data handling, compliance, integrations, or any technical topic -
 follow this exact strategy:
 
-1. First, navigate directly to the Coralogix docs homepage:
-   https://coralogix.com/docs/
+1. FIRST - navigate to the Coralogix LLMs.txt file (specially designed for AI reading):
+   https://coralogix.com/llms.txt
+   Use get_page_content to read it. This file contains a full index of all Coralogix docs.
 
-2. Then navigate to a DuckDuckGo search with Coralogix docs specific terms:
-   https://duckduckgo.com/?q=site:coralogix.com+<keywords from the question>
-   Example: https://duckduckgo.com/?q=site:coralogix.com+AI+customer+data+training
+2. Based on what you find in llms.txt, navigate to the most relevant specific doc page.
+   After navigating, ALWAYS use get_page_content to read the actual page content.
 
-3. Read the search results page content to find relevant links.
+3. If a page returns only "Go home Copyright" with no real content, wait and try get_page_content again.
 
-4. Navigate to the most relevant coralogix.com/docs/ link.
+4. If still no content, try navigating to:
+   https://coralogix.com/docs/user-guides/
+   and use get_page_content to find relevant links.
 
-5. Use get_page_content to read the page and extract the relevant answer.
+5. You MUST format your final answer in a natural, professional way like this:
 
-6. If the page content is insufficient, try another link or search with different keywords.
-
-7. You MUST format your final answer exactly like this:
-
-[Your detailed answer based on what you found]
+[A clear, natural, detailed answer in plain English based on what you found in the docs]
 
 📎 Sources:
-- [full URL of each Coralogix page you visited and used]
+- [full URL of each page you read]
 
-Always base your response strictly on what you find on the official Coralogix pages.
-Never guess or make up information — only use what is written in the docs."""
+Always base your response strictly on official Coralogix content.
+Write your answer naturally as if explaining to a colleague — not as a list of steps."""
 
     for _ in range(30):
         response = client.messages.create(
