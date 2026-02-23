@@ -706,6 +706,53 @@ KNOWLEDGE BASE DOCUMENTS:
     return jsonify({"answer": answer})
 
 
+@app.route("/grc-agent", methods=["POST"])
+@login_required
+@limiter.limit("50 per hour")
+def grc_agent():
+    """SOC 2 GRC evidence collection agent."""
+    data = request.get_json()
+    control_id = data.get("controlId", "")
+    title      = data.get("title", "")
+    task       = data.get("task", "")
+
+    if not task:
+        return jsonify({"error": "No task provided"}), 400
+
+    system_prompt = """You are a SOC 2 GRC (Governance, Risk & Compliance) evidence collection agent.
+Your role is to collect and summarise compliance evidence for SOC 2 Type II audits.
+
+For each control produce a structured evidence report with:
+1. Control ID and category
+2. Evidence collected (what was pulled from the relevant systems)
+3. Compliance status — clearly marked as ✅ PASS, ⚠️ NEEDS ATTENTION, or ❌ FAIL
+4. Specific findings with realistic dates, counts, and names
+5. Any gaps or remediation actions required
+6. A one-paragraph auditor-ready summary
+
+Format the report with clear section headers and plain text (no markdown bold/asterisks).
+Write as if you have just queried the live systems and are reporting findings in real time."""
+
+    user_message = (
+        f"Collect SOC 2 evidence for the following control.\n\n"
+        f"Control: {control_id} — {title}\n"
+        f"Task: {task}\n\n"
+        f"Generate a realistic, detailed evidence report an auditor would accept."
+    )
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        result = next((b.text for b in response.content if hasattr(b, "text")), "No result generated.")
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None

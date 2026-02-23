@@ -515,6 +515,9 @@
       <div class="tab" onclick="switchTab('kb')">
         <span class="tab-icon">📚</span> Knowledge Base
       </div>
+      <div class="tab" onclick="switchTab('grc')">
+        <span class="tab-icon">🛡️</span> GRC-SOC2
+      </div>
     </div>
 
     <!-- ═══ TAB 1: Browser Agent ═══ -->
@@ -684,6 +687,252 @@ Insurance: ..."></textarea>
       </div>
     </div>
 
+    <!-- ═══ TAB 5: GRC-SOC2 ═══ -->
+    <div class="tab-content" id="tab-grc">
+
+      <style>
+        .grc-grid { display: flex; flex-direction: column; gap: 14px; }
+        .grc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .grc-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .grc-left { display: flex; align-items: flex-start; gap: 12px; }
+        .grc-id { font-size: .7rem; font-weight: 700; background: rgba(14,165,233,.1); border: 1px solid rgba(14,165,233,.25); color: var(--accent2); border-radius: 6px; padding: 3px 9px; white-space: nowrap; margin-top: 2px; }
+        .grc-title { font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+        .grc-category { font-size: .75rem; color: var(--text3); }
+        .grc-badge { font-size: .68rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; margin-top: 2px; }
+        .badge-full { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.25); color: #059669; }
+        .badge-semi { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); color: #d97706; }
+        .badge-managed { background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25); color: #6366f1; }
+        .grc-desc { font-size: .82rem; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+        .grc-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+        .grc-tool-chip { font-size: .72rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--text3); }
+        .grc-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .grc-status { font-size: .78rem; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+        .grc-result { margin-top: 14px; background: var(--bg2); border: 1.5px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: .83rem; line-height: 1.75; color: var(--text2); white-space: pre-wrap; display: none; }
+        .grc-result.visible { display: block; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); display: inline-block; }
+        .status-dot.running { background: #f59e0b; animation: pulse 1s infinite; }
+        .status-dot.done { background: #10b981; }
+        .status-dot.error { background: #ef4444; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+      </style>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">🛡️ SOC 2 Evidence Dashboard</div>
+        <div class="card-sub">Run each control agent to automatically collect evidence. Results are structured for auditors.</div>
+      </div>
+
+      <div class="grc-grid">
+
+        <!-- CRLG_29-34 Access Control -->
+        <div class="grc-card" id="grc-card-access">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_29–34</div>
+              <div>
+                <div class="grc-title">Identity Agent</div>
+                <div class="grc-category">Access Control</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Full Automation</span>
+          </div>
+          <div class="grc-desc">Connects to Okta, AWS IAM, GitHub, and Teleport APIs. Pulls user lists daily, maps them to roles, and flags any account not tied to an active employee.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS IAM</span><span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Teleport</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-access"><span class="status-dot" id="dot-access"></span><span id="status-text-access">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('access','CRLG_29-34','Identity Agent','Collect SOC2 evidence for Access Control (CRLG_29-34). Check user lists, role mappings, and flag accounts not tied to active employees across Okta, AWS IAM, GitHub, and Teleport.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-access"></div>
+        </div>
+
+        <!-- CRLG_37 Offboarding -->
+        <div class="grc-card" id="grc-card-offboard">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_37</div>
+              <div>
+                <div class="grc-title">Termination Agent</div>
+                <div class="grc-category">Offboarding</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Full Automation</span>
+          </div>
+          <div class="grc-desc">Monitors HRIS (HiBob/Google) for "Terminated" status. Cross-references with all system APIs. If a user is active more than 24h after termination, it fires a Slack alert.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">HiBob</span><span class="grc-tool-chip">Google Workspace</span><span class="grc-tool-chip">Slack</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-offboard"><span class="status-dot" id="dot-offboard"></span><span id="status-text-offboard">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('offboard','CRLG_37','Termination Agent','Collect SOC2 evidence for Offboarding (CRLG_37). Check HiBob for terminated employees, cross-reference with system access, and verify no account remains active more than 24h post-termination.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-offboard"></div>
+        </div>
+
+        <!-- CRLG_50-54 Change Management -->
+        <div class="grc-card" id="grc-card-change">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_50–54</div>
+              <div>
+                <div class="grc-title">Repo Agent</div>
+                <div class="grc-category">Change Management</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Full Automation</span>
+          </div>
+          <div class="grc-desc">Scans GitHub Branch Protection rules and Pull Request metadata. Verifies that every merge to 'Production' has at least one approval and passed Cypress tests.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Cypress</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-change"><span class="status-dot" id="dot-change"></span><span id="status-text-change">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('change','CRLG_50-54','Repo Agent','Collect SOC2 evidence for Change Management (CRLG_50-54). Check GitHub branch protection rules, verify all production merges have at least one approval and passed Cypress tests.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-change"></div>
+        </div>
+
+        <!-- CRLG_26,44 Monitoring -->
+        <div class="grc-card" id="grc-card-monitor">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_26, 44</div>
+              <div>
+                <div class="grc-title">Coralogix / PagerDuty Agent</div>
+                <div class="grc-category">Monitoring & Incident</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Full Automation</span>
+          </div>
+          <div class="grc-desc">Fetches incident logs and Cloudflare reports. Links incidents to Root Cause Analysis (RCA) tickets in Jira to prove the "resolution loop."</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Coralogix</span><span class="grc-tool-chip">PagerDuty</span><span class="grc-tool-chip">Cloudflare</span><span class="grc-tool-chip">Jira</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-monitor"><span class="status-dot" id="dot-monitor"></span><span id="status-text-monitor">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('monitor','CRLG_26,44','Monitoring Agent','Collect SOC2 evidence for Monitoring & Incident (CRLG_26,44). Fetch incident logs from Coralogix/PagerDuty, check Cloudflare reports, and verify each incident is linked to an RCA ticket in Jira.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-monitor"></div>
+        </div>
+
+        <!-- CRLG_24-25 Vulnerability -->
+        <div class="grc-card" id="grc-card-vuln">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_24–25</div>
+              <div>
+                <div class="grc-title">Scanner Agent</div>
+                <div class="grc-category">Vulnerability Management</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Full Automation</span>
+          </div>
+          <div class="grc-desc">Connects to Snyk/Trivy/AWS Inspector. Reports the count of "Critical" vulnerabilities and tracks time taken to remediate (MTTR).</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Snyk</span><span class="grc-tool-chip">Trivy</span><span class="grc-tool-chip">AWS Inspector</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-vuln"><span class="status-dot" id="dot-vuln"></span><span id="status-text-vuln">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('vuln','CRLG_24-25','Scanner Agent','Collect SOC2 evidence for Vulnerability Management (CRLG_24-25). Report count of Critical vulnerabilities from Snyk/Trivy/AWS Inspector and calculate Mean Time To Remediate (MTTR).')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-vuln"></div>
+        </div>
+
+        <!-- CRLG_4,10,13 HR -->
+        <div class="grc-card" id="grc-card-hr">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_4, 10, 13</div>
+              <div>
+                <div class="grc-title">HR Compliance Agent</div>
+                <div class="grc-category">Human Resources</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-semi">◑ Semi-Automated</span>
+          </div>
+          <div class="grc-desc">Scans Google Drive for missing NDAs or Background Checks for new hires. Sends automated reminders to HR/Managers to upload missing docs.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Google Drive</span><span class="grc-tool-chip">HiBob</span><span class="grc-tool-chip">Slack</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-hr"><span class="status-dot" id="dot-hr"></span><span id="status-text-hr">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('hr','CRLG_4,10,13','HR Compliance Agent','Collect SOC2 evidence for Human Resources (CRLG_4,10,13). Check Google Drive for missing NDAs and Background Checks for new hires in the last 90 days.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-hr"></div>
+        </div>
+
+        <!-- CRLG_8,28,49 Governance -->
+        <div class="grc-card" id="grc-card-gov">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_8, 28, 49</div>
+              <div>
+                <div class="grc-title">Calendar Agent</div>
+                <div class="grc-category">Governance</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-semi">◑ Semi-Automated</span>
+          </div>
+          <div class="grc-desc">Queries Google Calendar for "Management" or "Security" keywords. Auto-populates the Evidence Sheet with dates and links to meeting minutes.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Google Calendar</span><span class="grc-tool-chip">Google Sheets</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-gov"><span class="status-dot" id="dot-gov"></span><span id="status-text-gov">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('gov','CRLG_8,28,49','Calendar Agent','Collect SOC2 evidence for Governance (CRLG_8,28,49). Find Management Review and Security Committee meetings in Google Calendar from the last 90 days, collect dates and meeting links.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-gov"></div>
+        </div>
+
+        <!-- CRLG_6,21 Policy -->
+        <div class="grc-card" id="grc-card-policy">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_6, 21</div>
+              <div>
+                <div class="grc-title">Policy Watchdog</div>
+                <div class="grc-category">Policy Management</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-managed">🔒 Managed Only</span>
+          </div>
+          <div class="grc-desc">Checks the "Last Modified" date of files in the Security Policy folder. If a policy hasn't been touched in 12 months, it triggers a renewal task.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Google Drive</span><span class="grc-tool-chip">Jira</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-policy"><span class="status-dot" id="dot-policy"></span><span id="status-text-policy">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('policy','CRLG_6,21','Policy Watchdog','Collect SOC2 evidence for Policy Management (CRLG_6,21). Check last-modified dates of all Security Policy documents. Flag any policy not updated in the last 12 months.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-policy"></div>
+        </div>
+
+        <!-- CRLG_41 Vendor -->
+        <div class="grc-card" id="grc-card-vendor">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">CRLG_41</div>
+              <div>
+                <div class="grc-title">Vendor Agent</div>
+                <div class="grc-category">Risk Mitigation</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-managed">🔒 Managed Only</span>
+          </div>
+          <div class="grc-desc">Tracks vendor SOC 2 expiry dates. Pings the Vendor Owner to request a new report 30 days before the old one expires.</div>
+          <div class="grc-tools">
+            <span class="grc-tool-chip">Vendor Registry</span><span class="grc-tool-chip">Slack</span><span class="grc-tool-chip">Email</span>
+          </div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-vendor"><span class="status-dot" id="dot-vendor"></span><span id="status-text-vendor">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('vendor','CRLG_41','Vendor Agent','Collect SOC2 evidence for Vendor Risk (CRLG_41). Check vendor SOC2 report expiry dates, identify vendors whose reports expire within 30 days, and list required follow-up actions.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-vendor"></div>
+        </div>
+
+      </div><!-- /grc-grid -->
+    </div><!-- /tab-grc -->
+
   </div><!-- /wrap -->
 
 <script>
@@ -698,7 +947,7 @@ Insurance: ..."></textarea>
   let smartCFile   = null;
 
   function switchTab(tab) {
-    const names = ["browser", "excel", "smart", "kb"];
+    const names = ["browser", "excel", "smart", "kb", "grc"];
     document.querySelectorAll(".tab").forEach((t, i) => {
       t.classList.toggle("active", names[i] === tab);
     });
@@ -706,6 +955,41 @@ Insurance: ..."></textarea>
       document.getElementById("tab-" + n).classList.toggle("active", n === tab);
     });
     if (tab === "kb") loadKBFiles();
+  }
+
+  async function runGRC(id, controlId, title, task) {
+    const dot        = document.getElementById('dot-' + id);
+    const statusText = document.getElementById('status-text-' + id);
+    const resultDiv  = document.getElementById('result-' + id);
+    const btn        = document.querySelector('#grc-card-' + id + ' button');
+
+    dot.className = 'status-dot running';
+    statusText.textContent = 'Running…';
+    resultDiv.textContent = '';
+    resultDiv.classList.remove('visible');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…'; }
+
+    try {
+      const res = await fetch('/grc-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, controlId, title, task })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error');
+
+      dot.className = 'status-dot done';
+      statusText.textContent = 'Done — ' + new Date().toLocaleTimeString();
+      resultDiv.textContent = data.result;
+      resultDiv.classList.add('visible');
+    } catch (err) {
+      dot.className = 'status-dot error';
+      statusText.textContent = 'Error';
+      resultDiv.textContent = '❌ ' + err.message;
+      resultDiv.classList.add('visible');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run Agent'; }
+    }
   }
 
   function handleFileSelect(e) { setFile(e.target.files[0]); }
