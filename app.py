@@ -259,11 +259,11 @@ def coralogix_direct_answer(question: str) -> dict:
     """Answer a Coralogix question without an agentic loop — fast single API call."""
     import concurrent.futures, requests as req
 
-    # 1. Fetch index
+    # 1. Fetch index (correct URL is /docs/llms.txt)
     try:
-        r = req.get("https://coralogix.com/llms.txt", timeout=8,
+        r = req.get("https://coralogix.com/docs/llms.txt", timeout=8,
                     headers={"User-Agent": "Mozilla/5.0"})
-        llms_text = r.text[:6000]
+        llms_text = r.text[:20000]  # large index, need more chars
     except Exception:
         return None
 
