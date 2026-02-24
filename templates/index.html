@@ -622,35 +622,30 @@
     <div class="tab-content" id="tab-excel">
       <div class="card">
         <div class="card-title">Vendor Vetting</div>
-        <div class="card-sub">Upload an Excel questionnaire and company details — the agent fills it automatically.</div>
+        <div class="card-sub">Enter a company name — we'll research their security &amp; compliance automatically.</div>
 
-        <label>Upload Excel file (questionnaire)</label>
-        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
-             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-          <span class="drop-icon">📂</span>
-          <div>Drag an Excel file here or <strong>click to browse</strong></div>
-          <div class="file-name" id="fileName"></div>
-          <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)" />
+        <label>Company name</label>
+        <input type="text" id="vendorName" placeholder="e.g. Okta, Datadog, Snowflake…" />
+
+        <div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;color:var(--text3);font-size:.78rem;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span>or upload a vendor document</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
         </div>
 
-        <label>Company details</label>
-        <textarea id="companyInfo" style="min-height:150px" placeholder="Company name: ...
-Address: ...
-Registration number: ...
-Country of incorporation: ...
-Company size: ...
-Contact name & title: ...
-Email: ...
-Phone: ...
-Website: ...
-ISO 27001: Yes/No
-SOC 2: Yes/No
-DPO: ...
-CISO: ...
-Insurance: ..."></textarea>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <span class="drop-icon">📄</span>
+          <div>Drag order form, contract, or any vendor document here</div>
+          <div class="file-name" id="fileName"></div>
+          <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.docx,.txt" onchange="handleFileSelect(event)" />
+        </div>
 
-        <div class="btn-row">
-          <button class="btn-primary" id="excelBtn" onclick="fillExcel()">🤖 Auto-Fill Questionnaire</button>
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="btn-primary btn-full" id="excelBtn" onclick="vetVendor()">
+            🔍 Vet Vendor
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
         </div>
         <div class="status" id="excelStatus"></div>
         <div class="progress-wrap" id="progressWrap">
@@ -658,15 +653,14 @@ Insurance: ..."></textarea>
         </div>
       </div>
 
-      <div class="card" id="excelStepsCard" style="display:none">
-        <div class="section-label">Cells Filled</div>
-        <div id="excelStepsList"></div>
+      <div class="card" id="vetReportCard" style="display:none">
+        <div class="section-label" style="margin-bottom:12px;" id="vetCompanyTitle"></div>
+        <div class="result-block result-success" id="vetReportText" style="white-space:pre-wrap;"></div>
       </div>
 
-      <div class="card" id="excelDownloadCard" style="display:none">
-        <div class="section-label" style="margin-bottom:10px;">Questionnaire Ready</div>
-        <div class="result-block result-success" id="excelResultText"></div>
-        <a id="downloadLink" class="download-btn">⬇ Download Filled Excel</a>
+      <div class="card" id="vetSourcesCard" style="display:none">
+        <div class="section-label" style="margin-bottom:10px;">📎 Sources Checked</div>
+        <div id="vetSourcesList"></div>
       </div>
     </div>
 
@@ -1476,37 +1470,53 @@ Insurance: ..."></textarea>
     setStatus("browserStatus", "🔴 Browser closed");
   }
 
-  async function fillExcel() {
-    if (!selectedFile) { alert("Please select an Excel file"); return; }
-    const info = document.getElementById("companyInfo").value.trim();
-    if (!info) { alert("Please enter company details"); return; }
-    document.getElementById("excelStepsCard").style.display = "none";
-    document.getElementById("excelDownloadCard").style.display = "none";
-    document.getElementById("excelStepsList").innerHTML = "";
+  async function vetVendor() {
+    const nameInput = document.getElementById("vendorName").value.trim();
+    if (!nameInput && !selectedFile) { alert("Enter a company name or upload a vendor document"); return; }
+
+    document.getElementById("vetReportCard").style.display = "none";
+    document.getElementById("vetSourcesCard").style.display = "none";
+
     const btn = document.getElementById("excelBtn");
-    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Filling…';
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Researching…';
     showProgress("progressWrap", "progressBar");
-    setStatus("excelStatus", "⏳ Agent is reading the questionnaire…");
+    document.getElementById("excelStatus").innerHTML = '<span class="status-dot blue"></span> Searching the web for vendor info…';
+
     try {
-      const fd = new FormData();
-      fd.append("file", selectedFile);
-      fd.append("info", info);
-      const res = await fetch("/fill-excel", { method: "POST", body: fd });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Unknown error"); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.getElementById("downloadLink");
-      link.href = url;
-      link.download = selectedFile.name.replace(".xlsx","_filled.xlsx");
+      let res;
+      if (selectedFile && !nameInput) {
+        const fd = new FormData();
+        fd.append("file", selectedFile);
+        res = await fetch("/vet-vendor", { method: "POST", body: fd });
+      } else {
+        res = await fetch("/vet-vendor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company: nameInput })
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error");
+
       finishProgress("progressBar", "progressWrap");
-      document.getElementById("excelDownloadCard").style.display = "block";
-      document.getElementById("excelResultText").textContent = "✅ Questionnaire filled successfully! Click below to download.";
-      setStatus("excelStatus", "✅ Done!");
+      document.getElementById("excelStatus").innerHTML = '<span class="status-dot green"></span> Done!';
+
+      document.getElementById("vetCompanyTitle").textContent = `🏢 ${data.company} — Vetting Report`;
+      document.getElementById("vetReportText").textContent = data.report;
+      document.getElementById("vetReportCard").style.display = "block";
+
+      if (data.sources?.length) {
+        document.getElementById("vetSourcesList").innerHTML =
+          data.sources.map(url => `<a class="source-link" href="${url}" target="_blank"><span class="source-icon">🔗</span>${url}</a>`).join("");
+        document.getElementById("vetSourcesCard").style.display = "block";
+      }
     } catch (err) {
-      setStatus("excelStatus", "❌ " + err.message);
+      document.getElementById("excelStatus").innerHTML = '<span class="status-dot red"></span> ' + err.message;
       document.getElementById("progressWrap").style.display = "none";
     } finally {
-      btn.disabled = false; btn.innerHTML = "🤖 Auto-Fill Questionnaire";
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Vet Vendor <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
     }
   }
 

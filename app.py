@@ -380,6 +380,86 @@ Meteorological Service website: https://ims.gov.il and read the data there."""
     return jsonify({"result": "Reached iteration limit", "steps": steps})
 
 
+# ── Vendor Vetting route ───────────────────────────────────────────────────────
+@app.route("/vet-vendor", methods=["POST"])
+@login_required
+@limiter.limit("50 per hour")
+def vet_vendor():
+    """Auto-research a vendor company and generate a security vetting report."""
+    import concurrent.futures, tempfile
+
+    company_name = ""
+
+    # If file uploaded — extract company name from it
+    if "file" in request.files:
+        f = request.files["file"]
+        suffix = "." + f.filename.rsplit(".", 1)[-1] if "." in f.filename else ".tmp"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            f.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            raw_text = extract_text_from_file(tmp_path, f.filename)[:3000]
+        finally:
+            os.unlink(tmp_path)
+        extract_resp = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=100,
+            messages=[{"role": "user", "content":
+                f"Extract only the vendor/company name from this document. "
+                f"Reply with just the company name, nothing else.\n\n{raw_text}"}]
+        )
+        company_name = next((b.text.strip() for b in extract_resp.content if hasattr(b, "text")), "")
+    else:
+        data = request.get_json(silent=True) or {}
+        company_name = data.get("company", "").strip()
+
+    if not company_name:
+        return jsonify({"error": "Company name required"}), 400
+
+    # Step 1: Use Haiku to generate likely security/trust URLs for the company
+    url_resp = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=300,
+        messages=[{"role": "user", "content":
+            f"For the company '{company_name}', generate 6-8 likely URLs for their security, "
+            f"trust, compliance, and privacy pages. Include their homepage.\n"
+            f"Common patterns: /security, /trust, /privacy, /legal/privacy, /compliance, /certifications\n"
+            f"Reply with ONLY full URLs starting with https://, one per line, no extra text."}]
+    )
+    url_text = next((b.text for b in url_resp.content if hasattr(b, "text")), "")
+    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("https://")][:8]
+
+    if not urls:
+        return jsonify({"error": f"Could not determine URLs for '{company_name}'"}), 500
+
+    # Step 2: Fetch all URLs in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(_cx_fetch, urls))
+
+    pages = {url: content for url, content in zip(urls, results) if content.strip()}
+    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items()) if pages else "No pages could be fetched."
+
+    # Step 3: Generate structured vetting report
+    report_resp = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=2048,
+        messages=[{"role": "user", "content":
+            f"You are a vendor security analyst. Generate a structured vetting report for '{company_name}' "
+            f"based on the web pages below.\n\n"
+            f"Include these sections:\n"
+            f"## Company Overview\n"
+            f"## Security Certifications (SOC 2, ISO 27001, PCI-DSS, etc.)\n"
+            f"## Data Privacy & GDPR\n"
+            f"## Data Security Practices\n"
+            f"## Known Issues or Risks\n"
+            f"## Overall Verdict — state Low / Medium / High risk and a one-line summary\n\n"
+            f"Be concise. If info not found on the pages, say 'Not found on public pages'.\n\n"
+            f"WEB PAGES:\n{context}"}]
+    )
+    report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
+    return jsonify({"company": company_name, "report": report, "sources": list(pages.keys())})
+
+
 # ── Excel agent route ──────────────────────────────────────────────────────────
 @app.route("/fill-excel", methods=["POST"])
 @login_required
