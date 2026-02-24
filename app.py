@@ -709,6 +709,43 @@ KNOWLEDGE BASE DOCUMENTS:
 POLICY_FOLDER_ID = "1aFGeWiae0Mm0gInsxKVZB2Qpd-5dbo7N"
 
 
+@app.route("/grc-policy-test", methods=["GET"])
+@login_required
+def grc_policy_test():
+    """Diagnostic: test Drive connection and list files."""
+    import json
+    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if not sa_json:
+        return jsonify({"status": "ERROR", "reason": "GOOGLE_SERVICE_ACCOUNT_JSON env var is NOT set"}), 500
+    try:
+        sa_info = json.loads(sa_json)
+        client_email = sa_info.get("client_email", "unknown")
+    except Exception as e:
+        return jsonify({"status": "ERROR", "reason": f"JSON parse failed: {e}"}), 500
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_info(
+            sa_info, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+        )
+        service = build("drive", "v3", credentials=creds, cache_discovery=False)
+        results = service.files().list(
+            q=f"'{POLICY_FOLDER_ID}' in parents and trashed=false",
+            fields="files(id, name, modifiedTime)",
+            pageSize=20,
+        ).execute()
+        files = results.get("files", [])
+        return jsonify({
+            "status": "OK",
+            "service_account": client_email,
+            "folder_id": POLICY_FOLDER_ID,
+            "files_found": len(files),
+            "files": [{"name": f["name"], "modified": f.get("modifiedTime","")[:10]} for f in files]
+        })
+    except Exception as e:
+        return jsonify({"status": "ERROR", "service_account": client_email, "reason": str(e)}), 500
+
+
 @app.route("/grc-policy", methods=["POST"])
 @login_required
 @limiter.limit("50 per hour")
@@ -746,8 +783,9 @@ def grc_policy():
     today = datetime.date.today().isoformat()
 
     if not files:
-        file_list = "No files found in the folder."
-        files_with_links = []
+        return jsonify({
+            "error": f"❌ No files found in the Drive folder.\n\nMost likely cause: the folder was not shared with the service account.\n\nPlease share the folder with:\ngrc-agent@coralogix-grc.iam.gserviceaccount.com\n\nThen try again."
+        }), 500
     else:
         lines = []
         files_with_links = []
