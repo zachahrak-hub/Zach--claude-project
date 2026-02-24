@@ -706,7 +706,7 @@ KNOWLEDGE BASE DOCUMENTS:
     return jsonify({"answer": answer})
 
 
-POLICY_FOLDER_ID = "1aFGeWiae0Mm0gInsxKVZB2Qpd-5dbo7N"
+POLICY_FOLDER_ID = "1vJMCHwGEk2Ox5NZQcJEF3GhS9kN16Rje"
 
 
 @app.route("/grc-policy-test", methods=["GET"])
