@@ -268,7 +268,7 @@ def coralogix_direct_answer(question: str) -> dict:
         llms_text = _get_llms_txt()
         if llms_text:
             pick = client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=300,
                 messages=[{"role": "user", "content":
                     f"Find the best Coralogix docs URLs for this question.\n"
@@ -414,7 +414,7 @@ def _vet_vendor_impl():
         finally:
             os.unlink(tmp_path)
         extract_resp = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-sonnet-4-5-20250929",
             max_tokens=100,
             messages=[{"role": "user", "content":
                 f"Extract only the vendor/company name from this document. "
@@ -430,7 +430,7 @@ def _vet_vendor_impl():
 
     # Step 1: Use Haiku to generate likely security/trust URLs for the company
     url_resp = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=400,
         messages=[{"role": "user", "content":
             f"For the company '{company_name}', generate 8-10 likely URLs.\n"
@@ -473,7 +473,7 @@ def _vet_vendor_impl():
 
     # Step 4: Extract trust center URL and document links from fetched pages
     links_resp = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=400,
         messages=[{"role": "user", "content":
             f"From the web pages below, extract:\n"
