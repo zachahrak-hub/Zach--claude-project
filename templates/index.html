@@ -477,6 +477,74 @@
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
+
+    /* ── Smart fill upgrades ─────────────────────────────── */
+    .step-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; min-width: 22px;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; font-size: .68rem; font-weight: 700;
+      margin-right: 8px; flex-shrink: 0;
+    }
+
+    .step-label {
+      display: flex; align-items: center;
+      font-size: .78rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text2); margin: 20px 0 8px;
+    }
+
+    .step-label:first-of-type { margin-top: 0; }
+
+    .drop-zone-smart { padding: 36px 20px; }
+
+    .btn-full {
+      width: 100%; justify-content: center;
+      padding: 12px 20px; font-size: .92rem; margin-top: 4px;
+    }
+
+    .btn-primary.btn-full:hover:not(:disabled) {
+      box-shadow: 0 4px 18px rgba(14,165,233,.45);
+    }
+
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .status-dot.blue  { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+    .status-dot.green { background: var(--green); }
+    .status-dot.red   { background: var(--red); }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+
+    .progress-wrap { height: 7px; }
+    .progress-bar  { border-radius: 999px; }
+
+    .success-banner {
+      background: linear-gradient(135deg, rgba(16,185,129,.1), rgba(16,185,129,.04));
+      border: 1.5px solid rgba(16,185,129,.28);
+      border-radius: 10px; padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; color: #059669; font-weight: 600; font-size: .92rem;
+    }
+
+    .success-banner-icon { font-size: 1.5rem; line-height: 1; }
+
+    .download-btn-lg {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 13px 20px; margin-top: 0;
+      background: linear-gradient(135deg, rgba(16,185,129,.15), rgba(16,185,129,.08));
+      border: 1.5px solid rgba(16,185,129,.35);
+      color: #059669; border-radius: 10px;
+      font-weight: 700; font-size: .92rem; cursor: pointer;
+      text-decoration: none; transition: background .15s, transform .12s, box-shadow .15s;
+      font-family: inherit;
+    }
+
+    .download-btn-lg:hover {
+      background: rgba(16,185,129,.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(16,185,129,.2);
+    }
   </style>
 </head>
 <body>
@@ -605,36 +673,31 @@ Insurance: ..."></textarea>
     <!-- ═══ TAB 3: Customer Questionnaire ═══ -->
     <div class="tab-content" id="tab-smart">
       <div class="card">
-        <div class="smart-header">
+        <div class="smart-header" style="margin-bottom:16px;">
           <div>
             <div class="card-title">Smart Auto-Fill</div>
-            <div class="card-sub" style="margin-bottom:0;">Upload questionnaire + company profile → Agent fills it automatically</div>
+            <div class="card-sub" style="margin-bottom:0;">Upload a questionnaire → Agent fills it automatically using your Knowledge Base</div>
           </div>
-          <a href="/download-template" class="download-btn" style="margin-top:0; font-size:.78rem; padding:8px 14px;">
-            ⬇ Company Profile Template
-          </a>
         </div>
 
-        <label>1. Questionnaire file (Vendor Questionnaire)</label>
-        <div class="drop-zone" id="dropZoneSmart" onclick="document.getElementById('smartQ').click()"
+        <div class="drop-zone drop-zone-smart" id="dropZoneSmart" onclick="document.getElementById('smartQ').click()"
              ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDrop2(event,'q')">
           <span class="drop-icon">📋</span>
-          <div>Drag questionnaire here or <strong>click to browse</strong></div>
+          <div>Drag vendor questionnaire here or <strong>click to browse</strong></div>
           <div class="file-name" id="smartQName"></div>
           <input type="file" id="smartQ" accept=".xlsx,.xls" onchange="handleSmartFile(event,'q')" />
         </div>
 
-        <label>2. Company profile (company_data_template.xlsx)</label>
-        <div class="drop-zone" id="dropZoneSmart2" onclick="document.getElementById('smartC').click()"
-             ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDrop2(event,'c')">
-          <span class="drop-icon">🏢</span>
-          <div>Drag company profile here or <strong>click to browse</strong></div>
-          <div class="file-name" id="smartCName"></div>
-          <input type="file" id="smartC" accept=".xlsx,.xls" onchange="handleSmartFile(event,'c')" />
+        <div style="display:flex; align-items:center; gap:7px; margin-top:10px; font-size:.78rem; color:var(--text3);">
+          <span>ℹ️</span>
+          <span>Company data is taken automatically from your <strong style="color:var(--accent2);">Knowledge Base</strong></span>
         </div>
 
-        <div class="btn-row">
-          <button class="btn-primary" id="smartBtn" onclick="runSmartFill()">🧠 Auto-Fill</button>
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="btn-primary btn-full" id="smartBtn" onclick="runSmartFill()">
+            🧠 Auto-Fill
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
         </div>
         <div class="status" id="smartStatus"></div>
         <div class="progress-wrap" id="smartProgressWrap">
@@ -643,14 +706,40 @@ Insurance: ..."></textarea>
       </div>
 
       <div class="card" id="smartDownloadCard" style="display:none">
-        <div class="section-label" style="margin-bottom:10px;">Questionnaire Filled</div>
-        <div class="result-block result-success" id="smartResultText"></div>
-        <a id="smartDownloadLink" class="download-btn">⬇ Download Filled Questionnaire</a>
+        <div class="success-banner">
+          <span class="success-banner-icon">✅</span>
+          <div>
+            <div>Questionnaire filled successfully!</div>
+            <div style="font-weight:400; font-size:.8rem; color:#059669; opacity:.85;" id="smartResultText"></div>
+          </div>
+        </div>
+        <a id="smartDownloadLink" class="download-btn-lg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Filled Questionnaire
+        </a>
       </div>
     </div>
 
     <!-- ═══ TAB 4: Knowledge Base ═══ -->
     <div class="tab-content" id="tab-kb">
+
+      <!-- Fetch from Web card -->
+      <div class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div style="font-size:.95rem; font-weight:700; color:var(--text);">🌐 Auto-import Coralogix Data</div>
+            <div style="font-size:.8rem; color:var(--text3); margin-top:4px;">Fetch security, compliance &amp; privacy info directly from coralogix.com</div>
+          </div>
+          <button class="btn-primary" id="fetchCxBtn" onclick="fetchCoralogixData()">
+            🌐 Fetch from Web
+          </button>
+        </div>
+        <div class="status" id="fetchCxStatus" style="margin-top:10px;"></div>
+        <div class="progress-wrap" id="fetchCxProgressWrap">
+          <div class="progress-bar" id="fetchCxProgressBar"></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">Knowledge Base</div>
         <div class="card-sub">Upload your documents — the agent will use them to answer questions accurately.</div>
@@ -1285,7 +1374,6 @@ Insurance: ..."></textarea>
   function handleSmartFile(e, type) {
     const f = e.target.files[0]; if (!f) return;
     if (type === 'q') { smartQFile = f; document.getElementById("smartQName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
-    else              { smartCFile = f; document.getElementById("smartCName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
   }
   function handleDragOver2(e)  { e.preventDefault(); e.currentTarget.classList.add("dragover"); }
   function handleDragLeave2(e) { e.currentTarget.classList.remove("dragover"); }
@@ -1294,22 +1382,19 @@ Insurance: ..."></textarea>
     const f = e.dataTransfer.files[0];
     if (f && f.name.match(/\.xlsx?$/i)) {
       if (type === 'q') { smartQFile = f; document.getElementById("smartQName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
-      else              { smartCFile = f; document.getElementById("smartCName").innerHTML = `<span class="file-badge">✅ ${f.name}</span>`; }
     }
   }
 
   async function runSmartFill() {
     if (!smartQFile) { alert("Please upload the questionnaire file"); return; }
-    if (!smartCFile) { alert("Please upload the company profile file"); return; }
     document.getElementById("smartDownloadCard").style.display = "none";
     const btn = document.getElementById("smartBtn");
     btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Filling…';
     showProgress("smartProgressWrap", "smartProgressBar");
-    setStatus("smartStatus", "⏳ Reading company profile and questionnaire…");
+    document.getElementById("smartStatus").innerHTML = '<span class="status-dot blue"></span> Reading questionnaire and Knowledge Base…';
     try {
       const fd = new FormData();
       fd.append("questionnaire", smartQFile);
-      fd.append("company_data", smartCFile);
       const res = await fetch("/smart-fill", { method: "POST", body: fd });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Error"); }
       const blob = await res.blob();
@@ -1318,13 +1403,14 @@ Insurance: ..."></textarea>
       document.getElementById("smartDownloadLink").download = smartQFile.name.replace(".xlsx","_filled.xlsx");
       finishProgress("smartProgressBar", "smartProgressWrap");
       document.getElementById("smartDownloadCard").style.display = "block";
-      document.getElementById("smartResultText").textContent = "✅ Questionnaire filled automatically based on company profile!";
-      setStatus("smartStatus", "✅ Done!");
+      document.getElementById("smartResultText").textContent = "Filled automatically using your Knowledge Base";
+      document.getElementById("smartStatus").innerHTML = '<span class="status-dot green"></span> Done!';
     } catch (err) {
-      setStatus("smartStatus", "❌ " + err.message);
+      document.getElementById("smartStatus").innerHTML = '<span class="status-dot red"></span> ' + err.message;
       document.getElementById("smartProgressWrap").style.display = "none";
     } finally {
-      btn.disabled = false; btn.innerHTML = "🧠 Auto-Fill";
+      btn.disabled = false;
+      btn.innerHTML = '🧠 Auto-Fill <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
     }
   }
 
@@ -1472,6 +1558,26 @@ Insurance: ..."></textarea>
   }
 
   async function uploadKBFiles(e) { uploadKBFileList(e.target.files); }
+
+  async function fetchCoralogixData() {
+    const btn = document.getElementById("fetchCxBtn");
+    btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Fetching…';
+    showProgress("fetchCxProgressWrap", "fetchCxProgressBar");
+    document.getElementById("fetchCxStatus").innerHTML = '<span class="status-dot blue"></span> Fetching Coralogix pages from the web…';
+    try {
+      const res = await fetch("/fetch-coralogix-kb", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error");
+      finishProgress("fetchCxProgressBar", "fetchCxProgressWrap");
+      document.getElementById("fetchCxStatus").innerHTML = '<span class="status-dot green"></span> ' + data.status;
+      loadKBFiles();
+    } catch (err) {
+      document.getElementById("fetchCxStatus").innerHTML = '<span class="status-dot red"></span> ' + err.message;
+      document.getElementById("fetchCxProgressWrap").style.display = "none";
+    } finally {
+      btn.disabled = false; btn.innerHTML = "🌐 Fetch from Web";
+    }
+  }
 
   async function uploadKBFileList(files) {
     if (!files.length) return;

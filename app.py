@@ -501,20 +501,21 @@ def get_questionnaire_questions(wb: openpyxl.Workbook) -> list:
 @login_required
 @limiter.limit("50 per hour")
 def smart_fill():
-    """Auto-fill an Excel questionnaire based on a company data file"""
+    """Auto-fill an Excel questionnaire using the Knowledge Base as company data"""
     import time
 
-    if "questionnaire" not in request.files or "company_data" not in request.files:
-        return jsonify({"error": "Two files required: questionnaire + company_data"}), 400
+    if "questionnaire" not in request.files:
+        return jsonify({"error": "Questionnaire file required"}), 400
 
     q_file = request.files["questionnaire"]
-    c_file = request.files["company_data"]
-
     q_wb = openpyxl.load_workbook(io.BytesIO(q_file.read()))
-    c_wb = openpyxl.load_workbook(io.BytesIO(c_file.read()))
 
-    # Read company profile (truncated)
-    company_text = read_excel_as_text(c_wb, max_chars=5000)
+    # Load company data from the Knowledge Base
+    company_text = load_knowledge_base()
+    if not company_text.strip():
+        return jsonify({"error": "Knowledge Base is empty. Please upload company documents in the Knowledge Base tab first."}), 400
+
+    company_text = company_text[:8000]
 
     # Read questionnaire structure (truncated)
     questionnaire_text = read_excel_as_text(q_wb, max_chars=5000)
@@ -582,6 +583,43 @@ Use get_excel_structure first, then fill_excel_cell for each empty response cell
             )
 
     return jsonify({"error": "Reached iteration limit"}), 500
+
+
+@app.route("/fetch-coralogix-kb", methods=["POST"])
+@login_required
+def fetch_coralogix_kb():
+    """Fetch key Coralogix pages from the web and save to the Knowledge Base."""
+    import concurrent.futures
+
+    CORALOGIX_KEY_URLS = [
+        "https://coralogix.com/about/",
+        "https://coralogix.com/privacy-policy/",
+        "https://coralogix.com/docs/security-and-compliance/",
+        "https://coralogix.com/docs/soc-2/",
+        "https://coralogix.com/docs/gdpr/",
+        "https://coralogix.com/docs/iso-27001/",
+        "https://coralogix.com/docs/data-security/",
+        "https://coralogix.com/docs/privacy-and-security/",
+    ]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(_cx_fetch, CORALOGIX_KEY_URLS))
+
+    chunks = []
+    fetched = 0
+    for url, content in zip(CORALOGIX_KEY_URLS, results):
+        if content.strip():
+            chunks.append(f"===== {url} =====\n{content}\n")
+            fetched += 1
+
+    if not chunks:
+        return jsonify({"error": "Could not fetch any Coralogix pages. Check your internet connection."}), 500
+
+    save_path = os.path.join(KB_DIR, "coralogix_web_data.txt")
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(chunks))
+
+    return jsonify({"status": f"✅ Fetched {fetched} Coralogix pages", "pages": fetched})
 
 
 # ── Knowledge Base ─────────────────────────────────────────────────────────────
@@ -844,6 +882,174 @@ Use plain text and clear section headers. No markdown asterisks or bold."""
         return jsonify({"result": result, "files": files_with_links})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+HIBOB_API_URL = "https://api.hibob.com/v1"
+
+
+@app.route("/grc-hibob-test", methods=["GET"])
+@login_required
+def grc_hibob_test():
+    """Diagnostic: test HiBob connection and return employee count."""
+    import requests as req
+
+    token = os.getenv("HIBOB_SERVICE_TOKEN")
+    if not token:
+        return jsonify({"status": "ERROR", "reason": "HIBOB_SERVICE_TOKEN env var is NOT set"}), 500
+
+    try:
+        headers = {
+            "Authorization": f"Basic {token}",
+            "Content-Type": "application/json",
+        }
+        resp = req.get(f"{HIBOB_API_URL}/people", headers=headers, timeout=30)
+
+        if resp.status_code == 401:
+            return jsonify({"status": "ERROR", "reason": "401 Unauthorized — check HIBOB_SERVICE_TOKEN value"}), 500
+        if resp.status_code != 200:
+            return jsonify({"status": "ERROR", "reason": f"HiBob API {resp.status_code}: {resp.text[:300]}"}), 500
+
+        data = resp.json()
+        employees = data.get("employees", [])
+        from collections import Counter
+        sites = Counter(e.get("work", {}).get("site", "Unknown") for e in employees)
+        return jsonify({
+            "status": "OK",
+            "employees_found": len(employees),
+            "sites": dict(sites),
+            "sample": [{"name": e.get("displayName"), "site": e.get("work", {}).get("site")} for e in employees[:5]],
+        })
+    except Exception as e:
+        return jsonify({"status": "ERROR", "reason": str(e)}), 500
+
+
+@app.route("/grc-hibob", methods=["POST"])
+@login_required
+@limiter.limit("50 per hour")
+def grc_hibob():
+    """SOC 2 Active Employee List (_10) — live data from HiBob."""
+    import requests as req
+    from collections import Counter
+    import datetime
+
+    token = os.getenv("HIBOB_SERVICE_TOKEN")
+    if not token:
+        return jsonify({"error": "⚠️ HIBOB_SERVICE_TOKEN is not set. Add it to Railway environment variables."}), 500
+
+    try:
+        headers = {
+            "Authorization": f"Basic {token}",
+            "Content-Type": "application/json",
+        }
+        resp = req.get(f"{HIBOB_API_URL}/people", headers=headers, timeout=30)
+
+        if resp.status_code == 401:
+            return jsonify({"error": "HiBob authentication failed (401 Unauthorized). Check your HIBOB_SERVICE_TOKEN."}), 500
+        if resp.status_code != 200:
+            return jsonify({"error": f"HiBob API returned {resp.status_code}: {resp.text[:300]}"}), 500
+
+        data = resp.json()
+        employees = data.get("employees", [])
+
+        if not employees:
+            return jsonify({"error": "No employees returned by HiBob. Check API permissions for the service user."}), 404
+
+    except Exception as e:
+        return jsonify({"error": f"HiBob connection error: {str(e)}"}), 500
+
+    # --- Build structured data ---
+    site_counts   = Counter()
+    dept_counts   = Counter()
+    employee_rows = []
+
+    for emp in employees:
+        work = emp.get("work", {})
+        site = work.get("site") or "Unknown"
+        dept = work.get("department") or "Unknown"
+        name = emp.get("displayName") or "Unknown"
+        title      = work.get("title") or ""
+        start_date = (work.get("startDate") or "")[:10]
+
+        site_counts[site] += 1
+        dept_counts[dept] += 1
+        employee_rows.append({
+            "name":      name,
+            "site":      site,
+            "dept":      dept,
+            "title":     title,
+            "startDate": start_date or "N/A",
+        })
+
+    today       = datetime.date.today().isoformat()
+    total       = len(employee_rows)
+    site_table  = "\n".join(
+        f"  - {s}: {c} ({round(c/total*100)}%)"
+        for s, c in sorted(site_counts.items(), key=lambda x: -x[1])
+    )
+    dept_table  = "\n".join(
+        f"  - {d}: {c}"
+        for d, c in sorted(dept_counts.items(), key=lambda x: -x[1])[:12]
+    )
+    sample_rows = "\n".join(
+        f"  {i+1}. {e['name']} | {e['site']} | {e['dept']} | {e['title']} | Since {e['startDate']}"
+        for i, e in enumerate(employee_rows[:30])
+    )
+
+    user_message = f"""You are a SOC 2 GRC evidence collection agent.
+
+Control: _10 — Active Employee List
+Data source: HiBob HRIS (live API pull)
+Audit date: {today}
+
+LIVE DATA:
+Total active employees: {total}
+
+Headcount by site/entity:
+{site_table}
+
+Headcount by department (top 12):
+{dept_table}
+
+Sample employee records (first 30 of {total}):
+{sample_rows}
+
+Generate a structured, auditor-ready evidence report with these sections:
+
+1. SUMMARY
+   Total headcount, number of distinct entities/sites, data pull date.
+
+2. HEADCOUNT BY ENTITY
+   Table of each site with employee count and % of total workforce.
+
+3. COMPLIANCE RELEVANCE
+   Confirm this employee population is the correct scope for:
+   - Access provisioning / deprovisioning reviews
+   - Security awareness training completion tracking
+   - Background check coverage
+   Flag any entity with fewer than 5 employees as potentially needing investigation.
+
+4. AUDITOR ATTESTATION
+   A concise paragraph confirming the population was extracted live from HiBob
+   and represents the complete active workforce as of the audit date.
+
+5. OVERALL STATUS: clearly state ✅ PASS, ⚠️ NEEDS ATTENTION, or ❌ FAIL
+
+Use plain text, no markdown asterisks, clear section headers."""
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1400,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        result = next((b.text for b in response.content if hasattr(b, "text")), "No result generated.")
+        return jsonify({
+            "result": result,
+            "employee_count": total,
+            "sites": [{"site": s, "count": c} for s, c in sorted(site_counts.items(), key=lambda x: -x[1])],
+        })
+    except Exception as e:
+        return jsonify({"error": f"Claude error: {str(e)}"}), 500
 
 
 @app.route("/grc-agent", methods=["POST"])
