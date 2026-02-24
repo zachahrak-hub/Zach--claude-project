@@ -359,14 +359,18 @@ Meteorological Service website: https://ims.gov.il and read the data there."""
             )
 
             if response.stop_reason == "tool_use":
-                tool_block = next(b for b in response.content if b.type == "tool_use")
-                result = execute_tool(tool_block.name, tool_block.input)
-                steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
+                tool_blocks = [b for b in response.content if b.type == "tool_use"]
+                tool_results = []
+                for tool_block in tool_blocks:
+                    result = execute_tool(tool_block.name, tool_block.input)
+                    steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_block.id,
+                        "content": result
+                    })
                 messages.append({"role": "assistant", "content": response.content})
-                messages.append({
-                    "role": "user",
-                    "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}],
-                })
+                messages.append({"role": "user", "content": tool_results})
             else:
                 final_text = next((b.text for b in response.content if hasattr(b, "text")), "")
                 return jsonify({"result": final_text, "steps": steps})
@@ -420,14 +424,18 @@ Start with get_excel_structure to see the questions, then fill each one."""
         )
 
         if response.stop_reason == "tool_use":
-            tool_block = next(b for b in response.content if b.type == "tool_use")
-            result = execute_excel_tool(tool_block.name, tool_block.input, wb)
-            steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
+            tool_blocks = [b for b in response.content if b.type == "tool_use"]
+            tool_results = []
+            for tool_block in tool_blocks:
+                result = execute_excel_tool(tool_block.name, tool_block.input, wb)
+                steps.append({"tool": tool_block.name, "input": tool_block.input, "result": result})
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": result
+                })
             messages.append({"role": "assistant", "content": response.content})
-            messages.append({
-                "role": "user",
-                "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}],
-            })
+            messages.append({"role": "user", "content": tool_results})
         else:
             output = io.BytesIO()
             wb.save(output)
@@ -563,13 +571,17 @@ Use get_excel_structure first, then fill_excel_cell for each empty response cell
                 return jsonify({"error": str(e)}), 500
 
         if response.stop_reason == "tool_use":
-            tool_block = next(b for b in response.content if b.type == "tool_use")
-            result = execute_excel_tool(tool_block.name, tool_block.input, q_wb)
+            tool_blocks = [b for b in response.content if b.type == "tool_use"]
+            tool_results = []
+            for tool_block in tool_blocks:
+                result = execute_excel_tool(tool_block.name, tool_block.input, q_wb)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": result
+                })
             messages.append({"role": "assistant", "content": response.content})
-            messages.append({
-                "role": "user",
-                "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}],
-            })
+            messages.append({"role": "user", "content": tool_results})
         else:
             output = io.BytesIO()
             q_wb.save(output)
