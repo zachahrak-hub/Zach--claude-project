@@ -706,6 +706,103 @@ KNOWLEDGE BASE DOCUMENTS:
     return jsonify({"answer": answer})
 
 
+POLICY_FOLDER_ID = "1aFGeWiae0Mm0gInsxKVZB2Qpd-5dbo7N"
+
+
+@app.route("/grc-policy", methods=["POST"])
+@login_required
+@limiter.limit("50 per hour")
+def grc_policy():
+    """SOC 2 Policy Documents — reads real Google Drive folder and generates evidence report."""
+    import json, datetime
+
+    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if not sa_json:
+        return jsonify({"error": "⚠️ GOOGLE_SERVICE_ACCOUNT_JSON not set in environment variables. See setup instructions."}), 500
+
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2 import service_account
+
+        sa_info = json.loads(sa_json)
+        creds = service_account.Credentials.from_service_account_info(
+            sa_info, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+        )
+        service = build("drive", "v3", credentials=creds, cache_discovery=False)
+
+        # List all files (and subfolders) in the policy folder
+        results = service.files().list(
+            q=f"'{POLICY_FOLDER_ID}' in parents and trashed=false",
+            fields="files(id, name, modifiedTime, mimeType, size)",
+            orderBy="name",
+            pageSize=100,
+        ).execute()
+
+        files = results.get("files", [])
+
+    except Exception as e:
+        return jsonify({"error": f"Google Drive error: {str(e)}"}), 500
+
+    today = datetime.date.today().isoformat()
+
+    if not files:
+        file_list = "No files found in the folder."
+    else:
+        lines = []
+        for f in files:
+            name     = f.get("name", "Unnamed")
+            modified = f.get("modifiedTime", "")[:10]  # YYYY-MM-DD only
+            mime     = f.get("mimeType", "")
+            ftype    = "folder" if mime == "application/vnd.google-apps.folder" else "file"
+            lines.append(f"- {name}  |  last modified: {modified}  |  type: {ftype}")
+        file_list = "\n".join(lines)
+
+    user_message = f"""You are a SOC 2 GRC evidence collection agent auditing policy documents.
+
+Control: _6_21 — Policy Documents
+Audit date: {today}
+
+Files found in the Google Drive policy folder:
+{file_list}
+
+Generate a structured, auditor-ready evidence report with these sections:
+
+1. SUMMARY
+   Total files found, date range of last modifications.
+
+2. POLICY INVENTORY
+   List every file with its last-modified date and a staleness flag:
+   - UP TO DATE (modified within 12 months)
+   - NEEDS REVIEW (modified 12-18 months ago)
+   - OVERDUE (not modified in over 18 months)
+
+3. COVERAGE CHECK
+   Check whether these expected policy types appear in the list (by name):
+   Information Security Policy, Access Control Policy, Incident Response Policy,
+   Change Management Policy, Business Continuity / DR Policy, Acceptable Use Policy,
+   Vendor Management Policy, Data Classification Policy, Risk Assessment Policy.
+   For each: FOUND or MISSING.
+
+4. COMPLIANCE STATUS
+   Overall: PASS / NEEDS ATTENTION / FAIL with a one-line justification.
+
+5. AUDITOR SUMMARY
+   One paragraph suitable for inclusion in an audit evidence package.
+
+Use plain text and clear section headers. No markdown asterisks or bold."""
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        result = next((b.text for b in response.content if hasattr(b, "text")), "No result generated.")
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/grc-agent", methods=["POST"])
 @login_required
 @limiter.limit("50 per hour")

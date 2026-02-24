@@ -1212,8 +1212,11 @@ Insurance: ..."></textarea>
     resultDiv.classList.remove('visible');
     if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…'; }
 
+    // Policy Documents card (_6_21) uses its own dedicated route
+    const endpoint = (id === '621') ? '/grc-policy' : '/grc-agent';
+
     try {
-      const res = await fetch('/grc-agent', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, controlId, title, task })
