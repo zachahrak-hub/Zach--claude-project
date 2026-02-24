@@ -733,7 +733,7 @@ def grc_policy():
         # List all files (and subfolders) in the policy folder
         results = service.files().list(
             q=f"'{POLICY_FOLDER_ID}' in parents and trashed=false",
-            fields="files(id, name, modifiedTime, mimeType, size)",
+            fields="files(id, name, modifiedTime, mimeType, webViewLink)",
             orderBy="name",
             pageSize=100,
         ).execute()
@@ -747,14 +747,19 @@ def grc_policy():
 
     if not files:
         file_list = "No files found in the folder."
+        files_with_links = []
     else:
         lines = []
+        files_with_links = []
         for f in files:
             name     = f.get("name", "Unnamed")
-            modified = f.get("modifiedTime", "")[:10]  # YYYY-MM-DD only
+            modified = f.get("modifiedTime", "")[:10]
             mime     = f.get("mimeType", "")
+            fid      = f.get("id", "")
+            link     = f.get("webViewLink") or f"https://drive.google.com/file/d/{fid}/view"
             ftype    = "folder" if mime == "application/vnd.google-apps.folder" else "file"
             lines.append(f"- {name}  |  last modified: {modified}  |  type: {ftype}")
+            files_with_links.append({"name": name, "modified": modified, "link": link, "type": ftype})
         file_list = "\n".join(lines)
 
     user_message = f"""You are a SOC 2 GRC evidence collection agent auditing policy documents.
@@ -798,7 +803,7 @@ Use plain text and clear section headers. No markdown asterisks or bold."""
             messages=[{"role": "user", "content": user_message}],
         )
         result = next((b.text for b in response.content if hasattr(b, "text")), "No result generated.")
-        return jsonify({"result": result})
+        return jsonify({"result": result, "files": files_with_links})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

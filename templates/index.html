@@ -1226,7 +1226,37 @@ Insurance: ..."></textarea>
 
       dot.className = 'status-dot done';
       statusText.textContent = 'Done — ' + new Date().toLocaleTimeString();
+
+      // Build result text
       resultDiv.textContent = data.result;
+
+      // If files with links are returned (Policy Documents), append a clickable file list
+      if (data.files && data.files.length > 0) {
+        const divider = document.createElement('hr');
+        divider.style.cssText = 'margin:14px 0;border:none;border-top:1px solid var(--border)';
+        const filesHeader = document.createElement('div');
+        filesHeader.style.cssText = 'font-size:.78rem;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.04em';
+        filesHeader.textContent = '📂 FILES IN FOLDER (' + data.files.length + ')';
+        const filesList = document.createElement('div');
+        filesList.style.cssText = 'display:flex;flex-direction:column;gap:5px';
+        data.files.forEach(f => {
+          const row = document.createElement('a');
+          row.href = f.link;
+          row.target = '_blank';
+          row.rel = 'noopener noreferrer';
+          row.style.cssText = 'font-size:.8rem;color:var(--accent2);text-decoration:none;display:flex;align-items:center;gap:6px';
+          const icon = f.type === 'folder' ? '📁' : '📄';
+          const date = f.modified ? ' · ' + f.modified : '';
+          row.innerHTML = icon + ' ' + f.name + '<span style="color:var(--text3);font-size:.75rem">' + date + '</span>';
+          row.onmouseover = () => row.style.textDecoration = 'underline';
+          row.onmouseout  = () => row.style.textDecoration = 'none';
+          filesList.appendChild(row);
+        });
+        resultDiv.appendChild(divider);
+        resultDiv.appendChild(filesHeader);
+        resultDiv.appendChild(filesList);
+      }
+
       resultDiv.classList.add('visible');
     } catch (err) {
       dot.className = 'status-dot error';
