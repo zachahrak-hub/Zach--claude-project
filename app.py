@@ -389,7 +389,16 @@ Meteorological Service website: https://ims.gov.il and read the data there."""
 @limiter.limit("50 per hour")
 def vet_vendor():
     """Auto-research a vendor company and generate a security vetting report."""
-    import concurrent.futures, tempfile
+    import concurrent.futures
+    try:
+        return _vet_vendor_impl()
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()[-500:]}), 500
+
+
+def _vet_vendor_impl():
+    import concurrent.futures
 
     company_name = ""
 
