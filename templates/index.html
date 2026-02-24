@@ -653,6 +653,13 @@
         </div>
       </div>
 
+      <!-- Trust Center + Documents card -->
+      <div class="card" id="vetTrustCard" style="display:none">
+        <div class="section-label" style="margin-bottom:12px;">🔐 Trust Center &amp; Documents</div>
+        <div id="vetTrustCenter" style="margin-bottom:12px;"></div>
+        <div id="vetDocsList"></div>
+      </div>
+
       <div class="card" id="vetReportCard" style="display:none">
         <div class="section-label" style="margin-bottom:12px;" id="vetCompanyTitle"></div>
         <div class="result-block result-success" id="vetReportText" style="white-space:pre-wrap;"></div>
@@ -1474,8 +1481,11 @@
     const nameInput = document.getElementById("vendorName").value.trim();
     if (!nameInput && !selectedFile) { alert("Enter a company name or upload a vendor document"); return; }
 
+    document.getElementById("vetTrustCard").style.display = "none";
     document.getElementById("vetReportCard").style.display = "none";
     document.getElementById("vetSourcesCard").style.display = "none";
+    document.getElementById("vetTrustCenter").innerHTML = "";
+    document.getElementById("vetDocsList").innerHTML = "";
 
     const btn = document.getElementById("excelBtn");
     btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Researching…';
@@ -1505,6 +1515,26 @@
       document.getElementById("vetCompanyTitle").textContent = `🏢 ${data.company} — Vetting Report`;
       document.getElementById("vetReportText").textContent = data.report;
       document.getElementById("vetReportCard").style.display = "block";
+
+      // Trust Center + Documents
+      const hasTrust = data.trust_center || data.documents?.length;
+      if (hasTrust) {
+        if (data.trust_center) {
+          document.getElementById("vetTrustCenter").innerHTML =
+            `<a class="download-btn" href="${data.trust_center}" target="_blank" style="display:inline-flex;">
+               🔐 Open Trust Center
+             </a>`;
+        }
+        if (data.documents?.length) {
+          document.getElementById("vetDocsList").innerHTML =
+            data.documents.map(doc =>
+              `<a class="source-link" href="${doc.url}" target="_blank">
+                 <span class="source-icon">📄</span>${doc.name}
+               </a>`
+            ).join("");
+        }
+        document.getElementById("vetTrustCard").style.display = "block";
+      }
 
       if (data.sources?.length) {
         document.getElementById("vetSourcesList").innerHTML =

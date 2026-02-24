@@ -419,27 +419,28 @@ def vet_vendor():
     # Step 1: Use Haiku to generate likely security/trust URLs for the company
     url_resp = client.messages.create(
         model="claude-3-5-haiku-20241022",
-        max_tokens=300,
+        max_tokens=400,
         messages=[{"role": "user", "content":
-            f"For the company '{company_name}', generate 6-8 likely URLs for their security, "
-            f"trust, compliance, and privacy pages. Include their homepage.\n"
-            f"Common patterns: /security, /trust, /privacy, /legal/privacy, /compliance, /certifications\n"
+            f"For the company '{company_name}', generate 8-10 likely URLs.\n"
+            f"PRIORITY — Trust Center (these are most important):\n"
+            f"  trust.<domain>.com, security.<domain>.com, <domain>.com/trust, <domain>.com/security\n"
+            f"Also include: homepage, /privacy, /legal, /compliance, /certifications\n"
             f"Reply with ONLY full URLs starting with https://, one per line, no extra text."}]
     )
     url_text = next((b.text for b in url_resp.content if hasattr(b, "text")), "")
-    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("https://")][:8]
+    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("https://")][:10]
 
     if not urls:
         return jsonify({"error": f"Could not determine URLs for '{company_name}'"}), 500
 
     # Step 2: Fetch all URLs in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
         results = list(ex.map(_cx_fetch, urls))
 
     pages = {url: content for url, content in zip(urls, results) if content.strip()}
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items()) if pages else "No pages could be fetched."
 
-    # Step 3: Generate structured vetting report
+    # Step 3: Generate structured vetting report + extract trust center & docs
     report_resp = client.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=2048,
@@ -457,7 +458,33 @@ def vet_vendor():
             f"WEB PAGES:\n{context}"}]
     )
     report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
-    return jsonify({"company": company_name, "report": report, "sources": list(pages.keys())})
+
+    # Step 4: Extract trust center URL and document links from fetched pages
+    links_resp = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=400,
+        messages=[{"role": "user", "content":
+            f"From the web pages below, extract:\n"
+            f"1. The Trust Center URL (trust center, security portal, compliance hub)\n"
+            f"2. Up to 5 direct document links (SOC 2 report, ISO 27001 certificate, pen-test, DPA, etc.)\n\n"
+            f"Reply in this exact JSON format (no extra text):\n"
+            f'{{"trust_center": "https://..." or null, "documents": [{{"name": "SOC 2 Report", "url": "https://..."}}]}}\n\n'
+            f"WEB PAGES:\n{context[:8000]}"}]
+    )
+    links_text = next((b.text for b in links_resp.content if hasattr(b, "text")), "{}")
+    try:
+        import json as json_lib
+        links_data = json_lib.loads(links_text.strip())
+    except Exception:
+        links_data = {"trust_center": None, "documents": []}
+
+    return jsonify({
+        "company": company_name,
+        "report": report,
+        "sources": list(pages.keys()),
+        "trust_center": links_data.get("trust_center"),
+        "documents": links_data.get("documents", []),
+    })
 
 
 # ── Excel agent route ──────────────────────────────────────────────────────────
