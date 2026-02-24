@@ -723,211 +723,454 @@ Insurance: ..."></textarea>
 
       <div class="grc-grid">
 
-        <!-- CRLG_29-34 Access Control -->
-        <div class="grc-card" id="grc-card-access">
+        <!-- ── CONTROL ENVIRONMENT ── -->
+        <div class="grc-card" id="grc-card-621">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_29–34</div>
+              <div class="grc-id">_6_21</div>
               <div>
-                <div class="grc-title">Identity Agent</div>
-                <div class="grc-category">Access Control</div>
+                <div class="grc-title">Policy Documents</div>
+                <div class="grc-category">Control Environment</div>
               </div>
             </div>
-            <span class="grc-badge badge-full">⚡ Full Automation</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Connects to Okta, AWS IAM, GitHub, and Teleport APIs. Pulls user lists daily, maps them to roles, and flags any account not tied to an active employee.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS IAM</span><span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Teleport</span>
-          </div>
+          <div class="grc-desc">Download the latest security & compliance policies from the relevant folder and verify they are up to date before placing in the evidence folder.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Google Drive</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-access"><span class="status-dot" id="dot-access"></span><span id="status-text-access">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('access','CRLG_29-34','Identity Agent','Collect SOC2 evidence for Access Control (CRLG_29-34). Check user lists, role mappings, and flag accounts not tied to active employees across Okta, AWS IAM, GitHub, and Teleport.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-621"><span class="status-dot" id="dot-621"></span><span id="status-text-621">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('621','_6_21','Policy Documents','Download the latest security and compliance policies from the relevant Google Drive folder and verify they are updated. Confirm the policies are placed in the correct evidence folder. Report what was found and any gaps.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-access"></div>
+          <div class="grc-result" id="result-621"></div>
         </div>
 
-        <!-- CRLG_37 Offboarding -->
-        <div class="grc-card" id="grc-card-offboard">
+        <div class="grc-card" id="grc-card-10">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_37</div>
+              <div class="grc-id">_10</div>
               <div>
-                <div class="grc-title">Termination Agent</div>
-                <div class="grc-category">Offboarding</div>
+                <div class="grc-title">Active Employee List</div>
+                <div class="grc-category">Control Environment</div>
               </div>
             </div>
-            <span class="grc-badge badge-full">⚡ Full Automation</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Monitors HRIS (HiBob/Google) for "Terminated" status. Cross-references with all system APIs. If a user is active more than 24h after termination, it fires a Slack alert.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">HiBob</span><span class="grc-tool-chip">Google Workspace</span><span class="grc-tool-chip">Slack</span>
-          </div>
+          <div class="grc-desc">From HiBob: filter only active employees and export all entities. Confirms access and training controls cover the full current workforce.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-offboard"><span class="status-dot" id="dot-offboard"></span><span id="status-text-offboard">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('offboard','CRLG_37','Termination Agent','Collect SOC2 evidence for Offboarding (CRLG_37). Check HiBob for terminated employees, cross-reference with system access, and verify no account remains active more than 24h post-termination.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-10"><span class="status-dot" id="dot-10"></span><span id="status-text-10">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('10','_10','Active Employee List','From HiBob, export the full list of active employees across all entities. Provide a count per entity/site, flag any anomalies, and confirm the population is complete for the audit period.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-offboard"></div>
+          <div class="grc-result" id="result-10"></div>
         </div>
 
-        <!-- CRLG_50-54 Change Management -->
-        <div class="grc-card" id="grc-card-change">
+        <!-- ── COMMUNICATION AND INFORMATION ── -->
+        <div class="grc-card" id="grc-card-1538">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_50–54</div>
+              <div class="grc-id">15_38</div>
               <div>
-                <div class="grc-title">Repo Agent</div>
+                <div class="grc-title">Customer Population</div>
+                <div class="grc-category">Communication and Information</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-semi">◑ Maybe</span>
+          </div>
+          <div class="grc-desc">Extract new customer population for the audit period — potentially from Salesforce. Needs coordination with the relevant team to confirm the export method.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Salesforce</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-1538"><span class="status-dot" id="dot-1538"></span><span id="status-text-1538">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('1538','15_38','Customer Population','Extract the new customer population for the audit period. Check Salesforce for new accounts created in the audit window. Provide counts, dates, and any data completeness issues.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-1538"></div>
+        </div>
+
+        <!-- ── SYSTEM OPERATIONS ── -->
+        <div class="grc-card" id="grc-card-19">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_19</div>
+              <div>
+                <div class="grc-title">CS Incidents Report</div>
+                <div class="grc-category">System Operations</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Get a support incident report from Intercom (CS team). Was difficult to access in the last audit — coordinate with CS to ensure the export is available.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Intercom</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-19"><span class="status-dot" id="dot-19"></span><span id="status-text-19">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('19','_19','CS Incidents Report','Generate a customer support incident report from Intercom filtered to the audit period. List total tickets, resolved vs open, average resolution time, and any SLA breaches. Note any access limitations.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-19"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-27">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_27</div>
+              <div>
+                <div class="grc-title">Incident Population</div>
+                <div class="grc-category">System Operations</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Generate the incident population report for the audit period (if incidents occurred). Lists all incidents with severity, date, and resolution status.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">PagerDuty</span><span class="grc-tool-chip">Jira</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-27"><span class="status-dot" id="dot-27"></span><span id="status-text-27">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('27','_27','Incident Population','Pull all incidents from the audit period. List each with: date, severity, systems affected, root cause, and resolution date. Confirm all P1/P2 incidents have a post-mortem linked.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-27"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-42">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_42</div>
+              <div>
+                <div class="grc-title">Endpoint Antivirus Report</div>
+                <div class="grc-category">System Operations</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">From JAMF: report of all employee laptops showing that antivirus is installed and active on every managed device.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">JAMF</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-42"><span class="status-dot" id="dot-42"></span><span id="status-text-42">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('42','_42','Endpoint Antivirus Report','From JAMF, generate a report of all employee-managed laptops. Confirm antivirus is installed and active on each device. Count devices with/without antivirus and list any non-compliant endpoints.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-42"></div>
+        </div>
+
+        <!-- ── RISK ASSESSMENT ── -->
+        <div class="grc-card" id="grc-card-20">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_20</div>
+              <div>
+                <div class="grc-title">Asset Inventory Export</div>
+                <div class="grc-category">Risk Assessment</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Export asset inventory from the platform team. Lists all infrastructure assets (prod/stag/test) with owner, type, and classification.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">AWS</span><span class="grc-tool-chip">Platform</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-20"><span class="status-dot" id="dot-20"></span><span id="status-text-20">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('20','_20','Asset Inventory Export','Export the full asset inventory as of the audit date. List all infrastructure assets grouped by environment (prod/stag/test), with asset type, owner, and data classification. Flag any untagged or unclassified assets.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-20"></div>
+        </div>
+
+        <!-- ── CONTROL ACTIVITIES ── -->
+        <div class="grc-card" id="grc-card-24">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_24</div>
+              <div>
+                <div class="grc-title">SAST Vulnerability Report</div>
+                <div class="grc-category">Control Activities</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Export from Orca Security: all source-code vulnerabilities (SAST) identified during the audit period. Proves the internal scanning program is operating.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Orca Security</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-24"><span class="status-dot" id="dot-24"></span><span id="status-text-24">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('24','_24','SAST Vulnerability Report','From Orca Security, export all SAST vulnerabilities identified during the audit period. Report totals by severity (Critical/High/Medium/Low), remediation rate, and any unresolved critical items.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-24"></div>
+        </div>
+
+        <!-- ── MONITORING ACTIVITIES ── -->
+        <div class="grc-card" id="grc-card-26">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_26</div>
+              <div>
+                <div class="grc-title">Monitoring Dashboard</div>
+                <div class="grc-category">Monitoring Activities</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">CloudWatch dashboard showing every production asset/instance is monitored. Plus Coralogix CSPM security metrics and alert configuration evidence.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">CloudWatch</span><span class="grc-tool-chip">Coralogix CSPM</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-26"><span class="status-dot" id="dot-26"></span><span id="status-text-26">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('26','_26','Monitoring Dashboard','Collect evidence that all production infrastructure is monitored. Check CloudWatch: confirm all instances have monitoring enabled. Check Coralogix CSPM: list active security metrics, alert rules, and any triggered alerts during the audit period.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-26"></div>
+        </div>
+
+        <!-- ── LOGICAL AND PHYSICAL ACCESS CONTROLS ── -->
+        <div class="grc-card" id="grc-card-2934">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_29 + _34</div>
+              <div>
+                <div class="grc-title">Okta Groups & Users</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">From Okta: full list of all groups with their corresponding user lists. Distinguish between owners and normal users for each group.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Okta</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-2934"><span class="status-dot" id="dot-2934"></span><span id="status-text-2934">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('2934','_29+_34','Okta Groups & Users','From Okta, list all groups with their complete user roster. For each group, separate owners from regular users. Flag any group with users who are no longer active employees.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-2934"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-3033">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_30 + _33</div>
+              <div>
+                <div class="grc-title">AWS Prod Access (IAM + SSO)</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Okta groups with access to prod AWS accounts, IAM permission sets, and SSO/SAML configuration. Shows who can reach production and with what privilege level.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS IAM</span><span class="grc-tool-chip">SSO/SAML</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-3033"><span class="status-dot" id="dot-3033"></span><span id="status-text-3033">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('3033','_30+_33','AWS Prod Access','List all Okta groups with access to production AWS accounts. For each group: user list, IAM permission set assigned, and SSO/SAML configuration. Flag any over-privileged access or users bypassing SSO.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-3033"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-3132">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_31 + _32</div>
+              <div>
+                <div class="grc-title">Password Policy & Admin List</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-semi">◑ Maybe</span>
+          </div>
+          <div class="grc-desc">Check Okta password policy settings and compile the list of Okta and AWS admins. Requires Okta admin permissions — needs IT team coordination.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-3132"><span class="status-dot" id="dot-3132"></span><span id="status-text-3132">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('3132','_31+_32','Password Policy & Admins','Check the Okta password policy: minimum length, complexity, MFA enforcement, session timeout. Also list all Okta and AWS admin users. Flag any settings below industry standard or unexpected admins.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-3132"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-36">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_36</div>
+              <div>
+                <div class="grc-title">New Hire Population</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">From HiBob: filter employees hired during the audit period, across all sites. Evidence for onboarding access provisioning controls.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-36"><span class="status-dot" id="dot-36"></span><span id="status-text-36">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('36','_36','New Hire Population','From HiBob, list all employees hired during the audit period across all sites. Include: name, start date, department, site/entity. Count per site and flag any missing onboarding data.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-36"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-37">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_37</div>
+              <div>
+                <div class="grc-title">Offboarding Population</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">From HiBob: filter employees who left during the audit period, across all sites. Evidence for offboarding and access revocation controls.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-37"><span class="status-dot" id="dot-37"></span><span id="status-text-37">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('37','_37','Offboarding Population','From HiBob, list all employees who left (terminated/resigned) during the audit period across all sites. Include: name, last day, department, site. Confirm access revocation was completed for each.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-37"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-39">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_39</div>
+              <div>
+                <div class="grc-title">IT Access Review</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">IT team access review — verify that access rights are appropriate and have been reviewed during the audit period.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">IT Systems</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-39"><span class="status-dot" id="dot-39"></span><span id="status-text-39">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('39','_39','IT Access Review','Collect evidence that an IT access review was conducted during the audit period. List systems reviewed, reviewer names, date of review, and actions taken (revocations, modifications). Flag any overdue reviews.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-39"></div>
+        </div>
+
+        <div class="grc-card" id="grc-card-41">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_41</div>
+              <div>
+                <div class="grc-title">Prod Security Groups</div>
+                <div class="grc-category">Logical and Physical Access Controls</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">Sample of production instances — review security group configurations. Verifies that network access is restricted per least-privilege principle.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">AWS Security Groups</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-41"><span class="status-dot" id="dot-41"></span><span id="status-text-41">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('41','_41','Prod Security Groups','Review security group configurations for a sample of production AWS instances. For each: list inbound/outbound rules, flag any 0.0.0.0/0 open rules, and confirm rules follow least-privilege. Recommend remediation for findings.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-41"></div>
+        </div>
+
+        <!-- ── CHANGE MANAGEMENT ── -->
+        <div class="grc-card" id="grc-card-46">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_46</div>
+              <div>
+                <div class="grc-title">AWS Account Inventory</div>
                 <div class="grc-category">Change Management</div>
               </div>
             </div>
-            <span class="grc-badge badge-full">⚡ Full Automation</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Scans GitHub Branch Protection rules and Pull Request metadata. Verifies that every merge to 'Production' has at least one approval and passed Cypress tests.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Cypress</span>
-          </div>
+          <div class="grc-desc">Export all AWS accounts with their account IDs: production, staging, test. Confirms environment segregation is in place.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">AWS Organizations</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-change"><span class="status-dot" id="dot-change"></span><span id="status-text-change">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('change','CRLG_50-54','Repo Agent','Collect SOC2 evidence for Change Management (CRLG_50-54). Check GitHub branch protection rules, verify all production merges have at least one approval and passed Cypress tests.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-46"><span class="status-dot" id="dot-46"></span><span id="status-text-46">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('46','_46','AWS Account Inventory','List all AWS accounts in the organization with their account ID, name, and environment type (prod/stag/test). Confirm environment separation is enforced. Flag any accounts without a clear owner or classification.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-change"></div>
+          <div class="grc-result" id="result-46"></div>
         </div>
 
-        <!-- CRLG_26,44 Monitoring -->
-        <div class="grc-card" id="grc-card-monitor">
+        <div class="grc-card" id="grc-card-51">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_26, 44</div>
+              <div class="grc-id">_51</div>
               <div>
-                <div class="grc-title">Coralogix / PagerDuty Agent</div>
-                <div class="grc-category">Monitoring & Incident</div>
+                <div class="grc-title">Branch Protection Rules</div>
+                <div class="grc-category">Change Management</div>
               </div>
             </div>
-            <span class="grc-badge badge-full">⚡ Full Automation</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Fetches incident logs and Cloudflare reports. Links incidents to Root Cause Analysis (RCA) tickets in Jira to prove the "resolution loop."</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Coralogix</span><span class="grc-tool-chip">PagerDuty</span><span class="grc-tool-chip">Cloudflare</span><span class="grc-tool-chip">Jira</span>
-          </div>
+          <div class="grc-desc">Print branch protection rules for master/main on the two in-scope GitHub repositories. Ensures code-review requirements are enforced before any merge.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-monitor"><span class="status-dot" id="dot-monitor"></span><span id="status-text-monitor">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('monitor','CRLG_26,44','Monitoring Agent','Collect SOC2 evidence for Monitoring & Incident (CRLG_26,44). Fetch incident logs from Coralogix/PagerDuty, check Cloudflare reports, and verify each incident is linked to an RCA ticket in Jira.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-51"><span class="status-dot" id="dot-51"></span><span id="status-text-51">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('51','_51','Branch Protection Rules','For the two in-scope GitHub repositories, report branch protection settings on master/main: required reviewers count, status checks required, admin bypass allowed, force push disabled. Flag any gaps.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-monitor"></div>
+          <div class="grc-result" id="result-51"></div>
         </div>
 
-        <!-- CRLG_24-25 Vulnerability -->
-        <div class="grc-card" id="grc-card-vuln">
+        <div class="grc-card" id="grc-card-53">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_24–25</div>
+              <div class="grc-id">_53</div>
               <div>
-                <div class="grc-title">Scanner Agent</div>
-                <div class="grc-category">Vulnerability Management</div>
+                <div class="grc-title">IaC Repo Access</div>
+                <div class="grc-category">Change Management</div>
               </div>
             </div>
-            <span class="grc-badge badge-full">⚡ Full Automation</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Connects to Snyk/Trivy/AWS Inspector. Reports the count of "Critical" vulnerabilities and tracks time taken to remediate (MTTR).</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Snyk</span><span class="grc-tool-chip">Trivy</span><span class="grc-tool-chip">AWS Inspector</span>
-          </div>
+          <div class="grc-desc">List who has write/admin access to the Infrastructure-as-Code repository. Ensures only authorized personnel can modify production infrastructure definitions.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-vuln"><span class="status-dot" id="dot-vuln"></span><span id="status-text-vuln">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('vuln','CRLG_24-25','Scanner Agent','Collect SOC2 evidence for Vulnerability Management (CRLG_24-25). Report count of Critical vulnerabilities from Snyk/Trivy/AWS Inspector and calculate Mean Time To Remediate (MTTR).')">▶ Run Agent</button>
+            <div class="grc-status" id="status-53"><span class="status-dot" id="dot-53"></span><span id="status-text-53">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('53','_53','IaC Repo Access','List all users and teams with write or admin access to the IaC GitHub repository. Flag any unexpected or over-privileged accounts. Confirm access matches the approved list.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-vuln"></div>
+          <div class="grc-result" id="result-53"></div>
         </div>
 
-        <!-- CRLG_4,10,13 HR -->
-        <div class="grc-card" id="grc-card-hr">
+        <div class="grc-card" id="grc-card-525354">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_4, 10, 13</div>
+              <div class="grc-id">52_53_54</div>
               <div>
-                <div class="grc-title">HR Compliance Agent</div>
-                <div class="grc-category">Human Resources</div>
+                <div class="grc-title">Change Platform Data</div>
+                <div class="grc-category">Change Management</div>
               </div>
             </div>
-            <span class="grc-badge badge-semi">◑ Semi-Automated</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Scans Google Drive for missing NDAs or Background Checks for new hires. Sends automated reminders to HR/Managers to upload missing docs.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Google Drive</span><span class="grc-tool-chip">HiBob</span><span class="grc-tool-chip">Slack</span>
-          </div>
+          <div class="grc-desc">Platform-level change management data extraction — using the automated script from the previous audit. Covers all required change management evidence in one pull.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Terraform</span><span class="grc-tool-chip">CI/CD</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-hr"><span class="status-dot" id="dot-hr"></span><span id="status-text-hr">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('hr','CRLG_4,10,13','HR Compliance Agent','Collect SOC2 evidence for Human Resources (CRLG_4,10,13). Check Google Drive for missing NDAs and Background Checks for new hires in the last 90 days.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-525354"><span class="status-dot" id="dot-525354"></span><span id="status-text-525354">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('525354','52_53_54','Change Platform Data','Extract change management evidence for controls 52-54. Report: total deployments in audit period, deployments with approval, any that bypassed review, rollbacks performed. Confirm CI/CD pipeline enforces approval gates.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-hr"></div>
+          <div class="grc-result" id="result-525354"></div>
         </div>
 
-        <!-- CRLG_8,28,49 Governance -->
-        <div class="grc-card" id="grc-card-gov">
+        <!-- ── RISK MITIGATION ── -->
+        <div class="grc-card" id="grc-card-55">
           <div class="grc-card-top">
             <div class="grc-left">
-              <div class="grc-id">CRLG_8, 28, 49</div>
+              <div class="grc-id">_55</div>
               <div>
-                <div class="grc-title">Calendar Agent</div>
-                <div class="grc-category">Governance</div>
-              </div>
-            </div>
-            <span class="grc-badge badge-semi">◑ Semi-Automated</span>
-          </div>
-          <div class="grc-desc">Queries Google Calendar for "Management" or "Security" keywords. Auto-populates the Evidence Sheet with dates and links to meeting minutes.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Google Calendar</span><span class="grc-tool-chip">Google Sheets</span>
-          </div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-gov"><span class="status-dot" id="dot-gov"></span><span id="status-text-gov">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('gov','CRLG_8,28,49','Calendar Agent','Collect SOC2 evidence for Governance (CRLG_8,28,49). Find Management Review and Security Committee meetings in Google Calendar from the last 90 days, collect dates and meeting links.')">▶ Run Agent</button>
-          </div>
-          <div class="grc-result" id="result-gov"></div>
-        </div>
-
-        <!-- CRLG_6,21 Policy -->
-        <div class="grc-card" id="grc-card-policy">
-          <div class="grc-card-top">
-            <div class="grc-left">
-              <div class="grc-id">CRLG_6, 21</div>
-              <div>
-                <div class="grc-title">Policy Watchdog</div>
-                <div class="grc-category">Policy Management</div>
-              </div>
-            </div>
-            <span class="grc-badge badge-managed">🔒 Managed Only</span>
-          </div>
-          <div class="grc-desc">Checks the "Last Modified" date of files in the Security Policy folder. If a policy hasn't been touched in 12 months, it triggers a renewal task.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Google Drive</span><span class="grc-tool-chip">Jira</span>
-          </div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-policy"><span class="status-dot" id="dot-policy"></span><span id="status-text-policy">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('policy','CRLG_6,21','Policy Watchdog','Collect SOC2 evidence for Policy Management (CRLG_6,21). Check last-modified dates of all Security Policy documents. Flag any policy not updated in the last 12 months.')">▶ Run Agent</button>
-          </div>
-          <div class="grc-result" id="result-policy"></div>
-        </div>
-
-        <!-- CRLG_41 Vendor -->
-        <div class="grc-card" id="grc-card-vendor">
-          <div class="grc-card-top">
-            <div class="grc-left">
-              <div class="grc-id">CRLG_41</div>
-              <div>
-                <div class="grc-title">Vendor Agent</div>
+                <div class="grc-title">Vendor Population</div>
                 <div class="grc-category">Risk Mitigation</div>
               </div>
             </div>
-            <span class="grc-badge badge-managed">🔒 Managed Only</span>
+            <span class="grc-badge badge-full">⚡ Yes</span>
           </div>
-          <div class="grc-desc">Tracks vendor SOC 2 expiry dates. Pings the Vendor Owner to request a new report 30 days before the old one expires.</div>
-          <div class="grc-tools">
-            <span class="grc-tool-chip">Vendor Registry</span><span class="grc-tool-chip">Slack</span><span class="grc-tool-chip">Email</span>
-          </div>
+          <div class="grc-desc">Extract the vendor population from the vendor registry (ZIP), filtered by the audit period. Confirms vendor risk management program coverage.</div>
+          <div class="grc-tools"><span class="grc-tool-chip">Vendor Registry</span></div>
           <div class="grc-footer">
-            <div class="grc-status" id="status-vendor"><span class="status-dot" id="dot-vendor"></span><span id="status-text-vendor">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('vendor','CRLG_41','Vendor Agent','Collect SOC2 evidence for Vendor Risk (CRLG_41). Check vendor SOC2 report expiry dates, identify vendors whose reports expire within 30 days, and list required follow-up actions.')">▶ Run Agent</button>
+            <div class="grc-status" id="status-55"><span class="status-dot" id="dot-55"></span><span id="status-text-55">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('55','_55','Vendor Population','From the vendor registry, list all active vendors in the audit period. For each: vendor name, contract dates, criticality tier, last security review date, and whether a current SOC2 or equivalent report is on file. Flag vendors with expired or missing reports.')">▶ Run Agent</button>
           </div>
-          <div class="grc-result" id="result-vendor"></div>
+          <div class="grc-result" id="result-55"></div>
+        </div>
+
+        <!-- ── AVAILABILITY ── -->
+        <div class="grc-card" id="grc-card-avail">
+          <div class="grc-card-top">
+            <div class="grc-left">
+              <div class="grc-id">_57 · _58 · _59 · _60</div>
+              <div>
+                <div class="grc-title">Availability & DB Resilience</div>
+                <div class="grc-category">Availability</div>
+              </div>
+            </div>
+            <span class="grc-badge badge-full">⚡ Yes</span>
+          </div>
+          <div class="grc-desc">DB backup status and retention (_57), Multi-AZ enabled on prod databases (_58), general availability check (_59), and dashboard + alert configuration (_60).</div>
+          <div class="grc-tools"><span class="grc-tool-chip">AWS RDS</span><span class="grc-tool-chip">CloudWatch</span><span class="grc-tool-chip">Coralogix</span></div>
+          <div class="grc-footer">
+            <div class="grc-status" id="status-avail"><span class="status-dot" id="dot-avail"></span><span id="status-text-avail">Not run</span></div>
+            <button class="btn-primary" onclick="runGRC('avail','_57+_58+_59+_60','Availability & DB Resilience','Check all four availability controls: (1) _57: confirm DB backups enabled with correct retention for prod databases; (2) _58: confirm Multi-AZ enabled for all prod RDS instances; (3) _59: check general availability posture; (4) _60: list active CloudWatch/Coralogix dashboards and alert configurations.')">▶ Run Agent</button>
+          </div>
+          <div class="grc-result" id="result-avail"></div>
         </div>
 
       </div><!-- /grc-grid -->
