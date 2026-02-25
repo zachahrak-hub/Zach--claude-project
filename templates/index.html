@@ -6,6 +6,7 @@
   <title>Zach Agent — Legal & Compliance</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -168,6 +169,109 @@
     .tab-icon { font-size: 15px; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+
+    /* ── Contract KPI ─────────────────────────────────────── */
+    .kpi-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .kpi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .kpi-num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .kpi-label {
+      font-size: 0.75rem;
+      color: var(--text3);
+      margin-top: 6px;
+      font-weight: 500;
+    }
+    .contract-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .contract-form-row input {
+      width: 100%;
+    }
+    .contract-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.875rem;
+    }
+    .contract-table th {
+      background: var(--bg2);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+    }
+    .contract-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .contract-table tr:hover td { background: var(--bg2); }
+    .duration-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .duration-fast { background: #dcfce7; color: #15803d; }
+    .duration-mid  { background: #fef9c3; color: #854d0e; }
+    .duration-slow { background: #fee2e2; color: #b91c1c; }
+    .btn-insight {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+    }
+    .btn-insight:hover { opacity: 0.85; }
+    .btn-delete-sm {
+      background: transparent;
+      border: 1px solid #fca5a5;
+      color: #ef4444;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .chart-wrap {
+      margin: 24px 0;
+      max-height: 280px;
+    }
+    .insights-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 12px;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
 
     /* ── Card ────────────────────────────────────────────── */
     .card {
@@ -585,6 +689,9 @@
       </div>
       <div class="tab" onclick="switchTab('grc')">
         <span class="tab-icon">🛡️</span> GRC-SOC2
+      </div>
+      <div class="tab" onclick="switchTab('contract')">
+        <span class="tab-icon">📑</span> Contract KPI
       </div>
     </div>
 
@@ -1266,6 +1373,87 @@
       </div><!-- /grc-grid -->
     </div><!-- /tab-grc -->
 
+    <!-- ═══ TAB 6: Contract KPI ═══ -->
+    <div class="tab-content" id="tab-contract">
+      <div class="card">
+        <div class="card-title">📑 Contract KPI</div>
+        <div class="card-sub">Track contract signing times, view averages, and extract AI insights from agreements.</div>
+
+        <!-- Add contract form -->
+        <div style="margin-top:20px">
+          <label>Add New Contract</label>
+          <div class="contract-form-row" style="margin-top:10px">
+            <div>
+              <label style="font-size:0.8rem;color:var(--text3)">Client Name</label>
+              <input type="text" id="contract-client" placeholder="e.g. Acme Corp" style="margin-top:4px">
+            </div>
+            <div>
+              <label style="font-size:0.8rem;color:var(--text3)">Start Date</label>
+              <input type="date" id="contract-start" style="margin-top:4px">
+            </div>
+            <div>
+              <label style="font-size:0.8rem;color:var(--text3)">Sign Date</label>
+              <input type="date" id="contract-sign" style="margin-top:4px">
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:0.8rem;color:var(--text3)">Contract File (PDF/DOCX — for AI analysis)</label>
+            <input type="file" id="contract-file" accept=".pdf,.docx,.doc,.txt" style="margin-top:4px">
+          </div>
+          <button class="btn-primary" onclick="addContract()">+ Add Contract</button>
+        </div>
+
+        <!-- KPI Stats -->
+        <div class="kpi-stats">
+          <div class="kpi-card">
+            <div class="kpi-num" id="kpi-total">0</div>
+            <div class="kpi-label">Total Contracts</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="kpi-avg">—</div>
+            <div class="kpi-label">Avg. Days to Sign</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="kpi-fastest">—</div>
+            <div class="kpi-label">Fastest (days)</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="kpi-slowest">—</div>
+            <div class="kpi-label">Slowest (days)</div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-wrap">
+          <canvas id="contractChart"></canvas>
+        </div>
+
+        <!-- Table -->
+        <table class="contract-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Start Date</th>
+              <th>Sign Date</th>
+              <th>Duration</th>
+              <th>AI Insights</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="contract-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No contracts yet. Add one above.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Insights panel -->
+      <div class="card" id="contract-insights-card" style="display:none">
+        <div class="card-title">🤖 AI Contract Insights</div>
+        <div class="card-sub" id="contract-insights-client"></div>
+        <div class="insights-box" id="contract-insights-body">Loading...</div>
+      </div>
+    </div><!-- /tab-contract -->
+
   </div><!-- /wrap -->
 
 <script>
@@ -1280,13 +1468,14 @@
   let smartCFile   = null;
 
   function switchTab(tab) {
-    const names = ["browser", "excel", "smart", "kb", "grc"];
+    const names = ["browser", "excel", "smart", "kb", "grc", "contract"];
     document.querySelectorAll(".tab").forEach((t, i) => {
       t.classList.toggle("active", names[i] === tab);
     });
     names.forEach(n => {
       document.getElementById("tab-" + n).classList.toggle("active", n === tab);
     });
+    if (tab === "contract") loadContracts();
     if (tab === "kb") loadKBFiles();
   }
 
@@ -1694,6 +1883,172 @@
     });
     loadKBFiles();
   });
+
+  /* ══════════════════════════════════════
+     CONTRACT KPI
+  ══════════════════════════════════════ */
+  let contractChart = null;
+
+  async function loadContracts() {
+    const res = await fetch("/list-contracts");
+    const data = await res.json();
+    renderContracts(data.contracts || []);
+  }
+
+  function renderContracts(contracts) {
+    const tbody = document.getElementById("contract-tbody");
+
+    if (contracts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No contracts yet. Add one above.</td></tr>`;
+      updateKPIStats([]);
+      renderChart([]);
+      return;
+    }
+
+    tbody.innerHTML = contracts.map(c => {
+      const days = c.duration_days;
+      let badge = "duration-mid";
+      if (days <= 7)  badge = "duration-fast";
+      if (days > 30)  badge = "duration-slow";
+      return `
+        <tr>
+          <td><strong>${c.client}</strong></td>
+          <td>${c.start_date}</td>
+          <td>${c.sign_date}</td>
+          <td><span class="duration-badge ${badge}">${days} days</span></td>
+          <td>
+            ${c.has_file
+              ? `<button class="btn-insight" onclick="analyzeContract('${c.id}','${c.client}')">🤖 Analyze</button>`
+              : `<span style="color:var(--text3);font-size:0.8rem">No file</span>`}
+          </td>
+          <td><button class="btn-delete-sm" onclick="deleteContract('${c.id}')">✕</button></td>
+        </tr>`;
+    }).join("");
+
+    updateKPIStats(contracts);
+    renderChart(contracts);
+  }
+
+  function updateKPIStats(contracts) {
+    document.getElementById("kpi-total").textContent = contracts.length;
+    if (contracts.length === 0) {
+      document.getElementById("kpi-avg").textContent = "—";
+      document.getElementById("kpi-fastest").textContent = "—";
+      document.getElementById("kpi-slowest").textContent = "—";
+      return;
+    }
+    const days = contracts.map(c => c.duration_days);
+    const avg = Math.round(days.reduce((a,b) => a+b, 0) / days.length);
+    document.getElementById("kpi-avg").textContent = avg;
+    document.getElementById("kpi-fastest").textContent = Math.min(...days);
+    document.getElementById("kpi-slowest").textContent = Math.max(...days);
+  }
+
+  function renderChart(contracts) {
+    const ctx = document.getElementById("contractChart").getContext("2d");
+    if (contractChart) contractChart.destroy();
+    if (contracts.length === 0) return;
+
+    const avgDays = contracts.length
+      ? Math.round(contracts.reduce((a,c) => a + c.duration_days, 0) / contracts.length)
+      : 0;
+
+    contractChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: contracts.map(c => c.client),
+        datasets: [
+          {
+            label: "Days to Sign",
+            data: contracts.map(c => c.duration_days),
+            backgroundColor: contracts.map(c =>
+              c.duration_days <= 7  ? "rgba(34,197,94,0.7)"  :
+              c.duration_days <= 30 ? "rgba(234,179,8,0.7)"  :
+                                      "rgba(239,68,68,0.7)"),
+            borderRadius: 6,
+          },
+          {
+            label: "Average",
+            data: contracts.map(() => avgDays),
+            type: "line",
+            borderColor: "rgba(14,165,233,0.8)",
+            borderDash: [6,4],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { position: "bottom" } },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: "Days" } }
+        }
+      }
+    });
+  }
+
+  async function addContract() {
+    const client    = document.getElementById("contract-client").value.trim();
+    const startDate = document.getElementById("contract-start").value;
+    const signDate  = document.getElementById("contract-sign").value;
+    const fileInput = document.getElementById("contract-file");
+
+    if (!client || !startDate || !signDate) {
+      alert("Please fill in client name, start date, and sign date.");
+      return;
+    }
+    if (new Date(signDate) < new Date(startDate)) {
+      alert("Sign date cannot be before start date.");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("client", client);
+    fd.append("start_date", startDate);
+    fd.append("sign_date", signDate);
+    if (fileInput.files[0]) fd.append("file", fileInput.files[0]);
+
+    const res = await fetch("/add-contract", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById("contract-client").value = "";
+    document.getElementById("contract-start").value  = "";
+    document.getElementById("contract-sign").value   = "";
+    fileInput.value = "";
+
+    loadContracts();
+  }
+
+  async function deleteContract(id) {
+    if (!confirm("Delete this contract?")) return;
+    await fetch("/delete-contract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    loadContracts();
+  }
+
+  async function analyzeContract(id, client) {
+    const card = document.getElementById("contract-insights-card");
+    const body = document.getElementById("contract-insights-body");
+    document.getElementById("contract-insights-client").textContent = `Analysis for: ${client}`;
+    card.style.display = "block";
+    body.textContent = "Analyzing contract...";
+    card.scrollIntoView({ behavior: "smooth" });
+
+    const res = await fetch("/analyze-contract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    body.textContent = data.insights || data.error || "No insights returned.";
+  }
 </script>
 </body>
 </html>

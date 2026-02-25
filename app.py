@@ -1230,6 +1230,132 @@ Write as if you have just queried the live systems and are reporting findings in
         return jsonify({"error": str(e)}), 500
 
 
+# ── Contract KPI ──────────────────────────────────────────────────────────────
+import uuid
+from datetime import date
+
+CONTRACTS_FILE = os.path.join(os.path.dirname(__file__), "contracts.json")
+
+def load_contracts():
+    if not os.path.exists(CONTRACTS_FILE):
+        return []
+    with open(CONTRACTS_FILE, "r") as f:
+        return json.load(f)
+
+def save_contracts(contracts):
+    with open(CONTRACTS_FILE, "w") as f:
+        json.dump(contracts, f, indent=2)
+
+
+@app.route("/add-contract", methods=["POST"])
+@login_required
+def add_contract():
+    try:
+        client     = request.form.get("client", "").strip()
+        start_date = request.form.get("start_date", "")
+        sign_date  = request.form.get("sign_date", "")
+        if not client or not start_date or not sign_date:
+            return jsonify({"error": "Missing fields"}), 400
+
+        start = date.fromisoformat(start_date)
+        sign  = date.fromisoformat(sign_date)
+        if sign < start:
+            return jsonify({"error": "Sign date before start date"}), 400
+
+        duration = (sign - start).days
+        contract_id = str(uuid.uuid4())
+
+        # Save file if provided
+        has_file = False
+        file = request.files.get("file")
+        if file and file.filename:
+            file_path = os.path.join(os.path.dirname(__file__), f"contract_{contract_id}.bin")
+            file.save(file_path)
+            has_file = True
+
+        contracts = load_contracts()
+        contracts.append({
+            "id": contract_id,
+            "client": client,
+            "start_date": start_date,
+            "sign_date": sign_date,
+            "duration_days": duration,
+            "has_file": has_file,
+        })
+        save_contracts(contracts)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/list-contracts", methods=["GET"])
+@login_required
+def list_contracts():
+    return jsonify({"contracts": load_contracts()})
+
+
+@app.route("/delete-contract", methods=["POST"])
+@login_required
+def delete_contract():
+    contract_id = request.json.get("id")
+    contracts = [c for c in load_contracts() if c["id"] != contract_id]
+    save_contracts(contracts)
+    file_path = os.path.join(os.path.dirname(__file__), f"contract_{contract_id}.bin")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return jsonify({"ok": True})
+
+
+@app.route("/analyze-contract", methods=["POST"])
+@login_required
+def analyze_contract():
+    try:
+        contract_id = request.json.get("id")
+        contracts = load_contracts()
+        contract = next((c for c in contracts if c["id"] == contract_id), None)
+        if not contract:
+            return jsonify({"error": "Contract not found"}), 404
+
+        file_path = os.path.join(os.path.dirname(__file__), f"contract_{contract_id}.bin")
+        if not os.path.exists(file_path):
+            return jsonify({"error": "No file found for this contract"}), 404
+
+        with open(file_path, "rb") as f:
+            content = f.read()
+
+        # Try to decode as text
+        try:
+            text = content.decode("utf-8")
+        except Exception:
+            text = content.decode("latin-1", errors="replace")
+
+        # Truncate if too long
+        text = text[:12000]
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": f"""Analyze this contract for client "{contract['client']}".
+Duration from start to signing: {contract['duration_days']} days.
+
+Please provide:
+1. Key obligations and commitments
+2. Important dates or deadlines mentioned
+3. Risk factors or red flags
+4. What can be learned / improved for future contracts
+5. Overall assessment
+
+Contract content:
+{text}"""
+            }]
+        )
+        return jsonify({"insights": msg.content[0].text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
