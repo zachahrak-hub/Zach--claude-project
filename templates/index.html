@@ -749,6 +749,31 @@
           <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.docx,.txt" onchange="handleFileSelect(event)" />
         </div>
 
+        <!-- Vetting Criteria -->
+        <div style="margin:20px 0 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:.8rem;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+            <span>🎯</span> Vetting Criteria — AI will check all of these
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
+              <span style="color:#6366f1;font-weight:700;flex-shrink:0">1.</span>
+              <span><strong>Data Training</strong> — Does the vendor train AI/ML models on our data?</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
+              <span style="color:#6366f1;font-weight:700;flex-shrink:0">2.</span>
+              <span><strong>Data Ownership</strong> — Is it verified that our data always belongs to us?</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
+              <span style="color:#6366f1;font-weight:700;flex-shrink:0">3.</span>
+              <span><strong>Data Retention</strong> — Is retention highly minimized and limited to the stated purpose only?</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
+              <span style="color:#6366f1;font-weight:700;flex-shrink:0">4.</span>
+              <span><strong>Legal Risk</strong> — Is the vendor classified as low risk by legal definition?</span>
+            </div>
+          </div>
+        </div>
+
         <div class="btn-row" style="margin-top:20px;">
           <button class="btn-primary btn-full" id="excelBtn" onclick="vetVendor()">
             🔍 Vet Vendor
