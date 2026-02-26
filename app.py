@@ -763,7 +763,8 @@ def fetch_coralogix_kb():
 
 
 # ── Knowledge Base ─────────────────────────────────────────────────────────────
-KB_DIR = os.path.join(os.path.dirname(__file__), "knowledge_base")
+# Use /data (Railway Volume) if available, otherwise fall back to local folder
+KB_DIR = "/data/knowledge_base" if os.path.isdir("/data") else os.path.join(os.path.dirname(__file__), "knowledge_base")
 os.makedirs(KB_DIR, exist_ok=True)
 
 
@@ -1243,7 +1244,8 @@ Write as if you have just queried the live systems and are reporting findings in
 import uuid
 from datetime import date
 
-CONTRACTS_FILE = os.path.join(os.path.dirname(__file__), "contracts.json")
+_DATA_DIR = "/data" if os.path.isdir("/data") else os.path.dirname(__file__)
+CONTRACTS_FILE = os.path.join(_DATA_DIR, "contracts.json")
 
 def load_contracts():
     if not os.path.exists(CONTRACTS_FILE):
