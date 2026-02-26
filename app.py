@@ -650,48 +650,51 @@ def smart_fill():
 
     company_text = company_text[:8000]
 
-    # Read questionnaire structure (truncated)
-    questionnaire_text = read_excel_as_text(q_wb, max_chars=5000)
+    # Read questionnaire structure with exact row/col positions
+    questionnaire_text = read_excel_questions(q_wb)
 
     system_prompt = """You are an expert vendor security questionnaire specialist.
 You have a company profile and a vendor questionnaire to fill.
-- Use fill_excel_cell to write answers into empty Response columns
+- Use fill_excel_cell to write answers directly into the cell NEXT to each question (same row, col+1)
 - For Yes/No questions answer exactly "Yes" or "No"
-- Keep answers concise and professional
+- Keep answers concise and professional (1-2 sentences max)
 - If info not available write "To be provided"
-- Do NOT modify question columns"""
+- Do NOT modify question columns
+- Fill EVERY question you see — do not skip any"""
 
-    user_message = f"""Fill this vendor questionnaire using the company profile.
+    user_message = f"""Fill this vendor questionnaire using the company profile below.
 
-COMPANY PROFILE (summary):
+The questionnaire shows each question with its exact Row and Col position.
+For each question at Row R, Col C — fill the answer into Row R, Col C+1.
+
+COMPANY PROFILE:
 {company_text}
 
-QUESTIONNAIRE LAYOUT:
+QUESTIONNAIRE QUESTIONS (with exact positions):
 {questionnaire_text}
 
-Use get_excel_structure first, then fill_excel_cell for each empty response cell."""
+Now call fill_excel_cell for every question above. Start immediately."""
 
     messages = [{"role": "user", "content": user_message}]
 
+    first_call = True
     for _ in range(80):
         try:
-            response = client.messages.create(
+            call_kwargs = dict(
                 model="claude-sonnet-4-5-20250929",
                 max_tokens=2048,
                 system=system_prompt,
                 tools=EXCEL_TOOLS,
                 messages=messages,
             )
+            if first_call:
+                call_kwargs["tool_choice"] = {"type": "any"}
+                first_call = False
+            response = client.messages.create(**call_kwargs)
         except Exception as e:
             if "rate_limit" in str(e).lower():
-                time.sleep(60)  # Wait a minute and retry
-                response = client.messages.create(
-                    model="claude-sonnet-4-5-20250929",
-                    max_tokens=2048,
-                    system=system_prompt,
-                    tools=EXCEL_TOOLS,
-                    messages=messages,
-                )
+                time.sleep(60)
+                response = client.messages.create(**call_kwargs)
             else:
                 return jsonify({"error": str(e)}), 500
 
