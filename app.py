@@ -608,39 +608,116 @@ def read_excel_as_text(wb: openpyxl.Workbook, max_chars: int = 6000) -> str:
 
 
 def get_questionnaire_questions(wb: openpyxl.Workbook) -> list:
-    """Returns a list of (sheet, row, col, question) for all questions"""
-    SKIP_VALUES = {"response", "question", "question/request", "required clarification",
-                   "additional information/comments", "coralogix review & comments",
-                   "general", "security", "gdpr compliance"}
+    """Returns a list of {sheet, row, col, question} for all unanswered questions.
+
+    Strategy:
+    1. Scan the first 6 rows for a header row containing both a 'question' column
+       and a 'response' column.
+    2. Use those column indices to find rows with a question and an empty response.
+    3. If no clear header pair is found, fall back to a conservative heuristic that
+       only picks up long descriptive text (likely real questions) with an empty
+       adjacent cell.
+    """
+    QUESTION_KEYWORDS = {"question", "request", "question/request", "item",
+                         "requirement", "description", "questionnaire"}
+    RESPONSE_KEYWORDS = {"response", "answer", "vendor response", "your response",
+                         "vendor answer", "reply", "please respond"}
+    PLACEHOLDER_VALUES = {"", "to be provided", "n/a", "-", "tbd", "pending",
+                          "please provide", "[to be filled]", "none"}
+
     questions = []
     seen = set()
+
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
-        for row in ws.iter_rows():
-            for cell in row:
-                val = cell.value
-                if not (val and isinstance(val, str) and len(val) > 5):
+        if not ws.max_row:
+            continue
+
+        # ── Step 1: find header row ────────────────────────────────────────────
+        # Require BOTH a question column AND a response column in the SAME row.
+        # Among question-keyword matches, prefer the longest header (more specific).
+        q_col = None   # column index of the 'Question' header
+        r_col = None   # column index of the 'Response' header
+        header_row_idx = None
+
+        for row_idx in range(1, min(8, ws.max_row + 1)):
+            row_q_col = None
+            row_q_len = 0   # track header length to prefer specific matches
+            row_r_col = None
+            for cell in ws[row_idx]:
+                if not cell.value or not isinstance(cell.value, str):
                     continue
-                if val.strip().lower() in SKIP_VALUES:
+                val_lower = cell.value.strip().lower()
+                # Question column: prefer the longest matching header in the row
+                if any(kw in val_lower for kw in QUESTION_KEYWORDS):
+                    if row_q_col is None or len(cell.value) > row_q_len:
+                        row_q_col = cell.column
+                        row_q_len = len(cell.value)
+                # Response column: first match wins
+                if row_r_col is None and any(kw in val_lower for kw in RESPONSE_KEYWORDS):
+                    row_r_col = cell.column
+            # Only accept this row as the header if BOTH columns were found and differ
+            if row_q_col and row_r_col and row_q_col != row_r_col:
+                q_col = row_q_col
+                r_col = row_r_col
+                header_row_idx = row_idx
+                break
+
+        # ── Step 2a: header-based scan ────────────────────────────────────────
+        if q_col and r_col and q_col != r_col:
+            start_row = (header_row_idx or 1) + 1
+            for row_idx in range(start_row, ws.max_row + 1):
+                q_val = ws.cell(row=row_idx, column=q_col).value
+                r_val = ws.cell(row=row_idx, column=r_col).value
+
+                if not (q_val and isinstance(q_val, str) and len(q_val.strip()) > 5):
                     continue
-                if not any(c.isalpha() for c in val):
+                if not any(c.isalpha() for c in q_val):
                     continue
-                resp_col = cell.column + 1
-                if resp_col > ws.max_column + 1:
-                    continue
-                resp_cell = ws.cell(row=cell.row, column=resp_col)
-                resp_val = resp_cell.value
-                # Fill if empty or previously set to placeholder
-                if resp_val is None or str(resp_val).strip() in ("", "To be provided", "N/A", "-"):
-                    key = (sheet_name, cell.row, resp_col)
+
+                r_str = str(r_val).strip().lower() if r_val is not None else ""
+                if r_str in PLACEHOLDER_VALUES:
+                    key = (sheet_name, row_idx, r_col)
                     if key not in seen:
                         seen.add(key)
                         questions.append({
                             "sheet": sheet_name,
-                            "row": cell.row,
-                            "col": resp_col,
-                            "question": val[:200]
+                            "row": row_idx,
+                            "col": r_col,
+                            "question": q_val.strip()[:200],
                         })
+
+        # ── Step 2b: conservative fallback (no clear headers) ─────────────────
+        else:
+            SKIP_EXACT = {"response", "question", "question/request", "required clarification",
+                          "additional information/comments", "coralogix review & comments",
+                          "general", "security", "gdpr compliance"}
+            for row in ws.iter_rows():
+                for cell in row:
+                    val = cell.value
+                    # Only pick up clearly question-like text: >20 chars or contains "?"
+                    if not (val and isinstance(val, str) and (len(val) > 20 or "?" in val)):
+                        continue
+                    if val.strip().lower() in SKIP_EXACT:
+                        continue
+                    if not any(c.isalpha() for c in val):
+                        continue
+                    resp_col = cell.column + 1
+                    if resp_col > ws.max_column + 1:
+                        continue
+                    resp_cell = ws.cell(row=cell.row, column=resp_col)
+                    r_str = str(resp_cell.value).strip().lower() if resp_cell.value is not None else ""
+                    if r_str in PLACEHOLDER_VALUES:
+                        key = (sheet_name, cell.row, resp_col)
+                        if key not in seen:
+                            seen.add(key)
+                            questions.append({
+                                "sheet": sheet_name,
+                                "row": cell.row,
+                                "col": resp_col,
+                                "question": val[:200],
+                            })
+
     return questions
 
 
