@@ -609,24 +609,38 @@ def read_excel_as_text(wb: openpyxl.Workbook, max_chars: int = 6000) -> str:
 
 def get_questionnaire_questions(wb: openpyxl.Workbook) -> list:
     """Returns a list of (sheet, row, col, question) for all questions"""
+    SKIP_VALUES = {"response", "question", "question/request", "required clarification",
+                   "additional information/comments", "coralogix review & comments",
+                   "general", "security", "gdpr compliance"}
     questions = []
+    seen = set()
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         for row in ws.iter_rows():
             for cell in row:
                 val = cell.value
-                if val and isinstance(val, str) and len(val) > 10:
-                    if any(c.isalpha() for c in val) and "?" not in val[:3]:
-                        resp_col = cell.column + 1
-                        if resp_col <= ws.max_column:
-                            resp_cell = ws.cell(row=cell.row, column=resp_col)
-                            if resp_cell.value is None or resp_cell.value == "":
-                                questions.append({
-                                    "sheet": sheet_name,
-                                    "row": cell.row,
-                                    "col": resp_col,
-                                    "question": val[:200]
-                                })
+                if not (val and isinstance(val, str) and len(val) > 5):
+                    continue
+                if val.strip().lower() in SKIP_VALUES:
+                    continue
+                if not any(c.isalpha() for c in val):
+                    continue
+                resp_col = cell.column + 1
+                if resp_col > ws.max_column + 1:
+                    continue
+                resp_cell = ws.cell(row=cell.row, column=resp_col)
+                resp_val = resp_cell.value
+                # Fill if empty or previously set to placeholder
+                if resp_val is None or str(resp_val).strip() in ("", "To be provided", "N/A", "-"):
+                    key = (sheet_name, cell.row, resp_col)
+                    if key not in seen:
+                        seen.add(key)
+                        questions.append({
+                            "sheet": sheet_name,
+                            "row": cell.row,
+                            "col": resp_col,
+                            "question": val[:200]
+                        })
     return questions
 
 
