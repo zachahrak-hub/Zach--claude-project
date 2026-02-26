@@ -1485,6 +1485,12 @@ def health():
     return "ok", 200
 
 
+@app.route("/playbook")
+@login_required
+def playbook():
+    return render_template("playbook.html")
+
+
 @app.route("/")
 @login_required
 def index():

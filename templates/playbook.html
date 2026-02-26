@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coralogix Legal & Compliance Playbook</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.chart-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 300px;
+  max-height: 350px;
+  margin: 0 auto;
+}
+.clause-card { transition: all 0.2s ease; }
+.clause-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+.nav-link.active {
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border-right: 3px solid #0284c7;
+}
+.hidden-section { display: none; }
+</style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+<!-- Sidebar Navigation -->
+<aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shadow-sm">
+  <!-- Logo Area -->
+  <div class="h-16 flex items-center px-6 border-b border-gray-200">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center text-white font-bold text-lg">C</div>
+      <span class="font-bold text-slate-800 text-lg tracking-tight">Legal Ops</span>
+    </div>
+  </div>
+
+  <!-- Navigation Menu -->
+  <nav class="flex-1 overflow-y-auto py-4 space-y-1">
+    <p class="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Overview</p>
+    <a href="#" onclick="navigateTo('dashboard')" id="nav-dashboard" class="nav-link active flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-chart-pie w-6"></i> Dashboard
+    </a>
+
+    <p class="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Contract Playbook</p>
+    <a href="#" onclick="navigateTo('contracts-nda')" id="nav-contracts-nda" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-file-signature w-6"></i> NDA Review
+    </a>
+    <a href="#" onclick="navigateTo('contracts-msa')" id="nav-contracts-msa" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-file-contract w-6"></i> SaaS MSA
+    </a>
+    <a href="#" onclick="navigateTo('clause-library')" id="nav-clause-library" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-book-open w-6"></i> Clause Library
+    </a>
+
+    <p class="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Compliance & Risk</p>
+    <a href="#" onclick="navigateTo('privacy')" id="nav-privacy" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-shield-halved w-6"></i> Data Privacy (GDPR)
+    </a>
+    <a href="#" onclick="navigateTo('tools')" id="nav-tools" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-calculator w-6"></i> Risk Calculator
+    </a>
+    <a href="#" onclick="navigateTo('incident')" id="nav-incident" class="nav-link flex items-center px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+      <i class="fa-solid fa-triangle-exclamation w-6"></i> Incident Response
+    </a>
+  </nav>
+
+  <!-- Bottom: back to portal + user -->
+  <div class="p-4 border-t border-gray-200 space-y-3">
+    <a href="/" class="flex items-center gap-2 text-xs text-sky-600 hover:text-sky-800 font-medium transition-colors">
+      <i class="fa-solid fa-arrow-left"></i> Back to Portal
+    </a>
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold">AG</div>
+      <div class="flex flex-col">
+        <span class="text-sm font-medium text-gray-900">Legal Agent</span>
+        <span class="text-xs text-gray-500">Coralogix</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto relative bg-slate-50">
+  <!-- Top Header -->
+  <header class="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+    <h2 id="page-title" class="text-xl font-bold text-gray-800">Legal Operations Dashboard</h2>
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+          <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </span>
+        <input type="text" placeholder="Search Playbook..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent w-64">
+      </div>
+      <a href="/logout" class="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- Content Container -->
+  <div class="p-8 max-w-7xl mx-auto space-y-8">
+
+    <!-- ================= DASHBOARD VIEW ================= -->
+    <section id="view-dashboard" class="space-y-6">
+      <div class="bg-blue-50 border-l-4 border-sky-500 p-4 rounded-r-lg">
+        <p class="text-sm text-blue-900">
+          <strong>Welcome to the Legal Ops Playbook.</strong> This central hub provides the framework for all legal and compliance activities. Use the metrics below to track team performance, and navigate the sidebar to access specific training modules, contract fallbacks, and compliance workflows.
+        </p>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-gray-500 uppercase">Open Requests</p>
+              <h3 class="text-2xl font-bold text-gray-900 mt-1">42</h3>
+            </div>
+            <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">+12%</span>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-gray-500 uppercase">Avg Review Time</p>
+              <h3 class="text-2xl font-bold text-gray-900 mt-1">1.8 Days</h3>
+            </div>
+            <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">Target: 2.0</span>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-gray-500 uppercase">High Risk Deals</p>
+              <h3 class="text-2xl font-bold text-gray-900 mt-1">5</h3>
+            </div>
+            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">Action Req</span>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-gray-500 uppercase">Compliance Score</p>
+              <h3 class="text-2xl font-bold text-gray-900 mt-1">98%</h3>
+            </div>
+            <span class="bg-sky-100 text-sky-700 text-xs px-2 py-1 rounded-full">SOC2 Ready</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h3 class="text-sm font-bold text-gray-800 mb-4">Contract Volume by Type</h3>
+          <div class="chart-container"><canvas id="volumeChart"></canvas></div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h3 class="text-sm font-bold text-gray-800 mb-4">Risk Distribution</h3>
+          <div class="chart-container"><canvas id="riskChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MSA PLAYBOOK VIEW ================= -->
+    <section id="view-contracts-msa" class="hidden-section space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">SaaS Master Services Agreement (MSA) Playbook</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          This module guides the review of customer MSAs. Select a clause category below to see our standard position, acceptable fallbacks, and walk-away points.
+          <br><strong>Golden Rule:</strong> We sell a standard SaaS service. Avoid customization of the platform or heavy indemnities for indirect damages.
+        </p>
+        <div class="flex gap-2 mb-6 flex-wrap">
+          <button onclick="filterClauses('all')" class="px-3 py-1 text-xs font-medium bg-slate-800 text-white rounded-full">All Clauses</button>
+          <button onclick="filterClauses('Liability')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Liability</button>
+          <button onclick="filterClauses('Indemnity')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Indemnity</button>
+          <button onclick="filterClauses('Data')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Data/IP</button>
+        </div>
+        <div id="clauses-container" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- ================= CLAUSE LIBRARY VIEW ================= -->
+    <section id="view-clause-library" class="hidden-section space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">Full Clause Library</h2>
+        <p class="text-sm text-gray-600 mb-4">All negotiation positions across contract types. Filter by category using the tags below.</p>
+        <div class="flex gap-2 mb-6 flex-wrap">
+          <button onclick="filterLibrary('all')" class="px-3 py-1 text-xs font-medium bg-slate-800 text-white rounded-full">All</button>
+          <button onclick="filterLibrary('Liability')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Liability</button>
+          <button onclick="filterLibrary('Indemnity')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Indemnity</button>
+          <button onclick="filterLibrary('Data')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">Data/IP</button>
+          <button onclick="filterLibrary('General')" class="px-3 py-1 text-xs font-medium bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50">General</button>
+        </div>
+        <div id="library-container" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- ================= NDA PLAYBOOK VIEW ================= -->
+    <section id="view-contracts-nda" class="hidden-section space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">NDA Review Checklist</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Quick checklist for reviewing incoming NDAs. If the counterparty agrees to our standard Mutual NDA, no review is needed.
+        </p>
+        <div class="space-y-3">
+          <div class="flex items-start p-3 bg-gray-50 rounded border border-gray-200">
+            <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500">
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Definition of Confidential Information</h4>
+              <p class="text-xs text-gray-500">Ensure it includes "marked as confidential OR reasonably understood to be confidential". Avoid specific lists that exclude our code/pricing.</p>
+            </div>
+          </div>
+          <div class="flex items-start p-3 bg-gray-50 rounded border border-gray-200">
+            <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500">
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Term & Survival</h4>
+              <p class="text-xs text-gray-500">Standard: 3 years term, 3-5 years survival. Trade secrets should survive indefinitely.</p>
+            </div>
+          </div>
+          <div class="flex items-start p-3 bg-gray-50 rounded border border-gray-200">
+            <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500">
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Residuals Clause</h4>
+              <p class="text-xs text-gray-500">Ensure we retain the right to use knowledge retained in memory (Residuals) for development purposes.</p>
+            </div>
+          </div>
+          <div class="flex items-start p-3 bg-gray-50 rounded border border-gray-200">
+            <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500">
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Mutual vs One-Way</h4>
+              <p class="text-xs text-gray-500">Prefer mutual NDAs. If one-way, ensure obligations only flow from our side when we're disclosing, not when receiving.</p>
+            </div>
+          </div>
+          <div class="flex items-start p-3 bg-orange-50 rounded border border-orange-200">
+            <i class="fa-solid fa-triangle-exclamation text-orange-500 mt-1 mr-3 flex-shrink-0"></i>
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Non-Solicit</h4>
+              <p class="text-xs text-gray-500">If present, must be mutual. Strike if it prevents hiring via general solicitations (LinkedIn ads).</p>
+            </div>
+          </div>
+          <div class="flex items-start p-3 bg-orange-50 rounded border border-orange-200">
+            <i class="fa-solid fa-triangle-exclamation text-orange-500 mt-1 mr-3 flex-shrink-0"></i>
+            <div>
+              <h4 class="text-sm font-bold text-gray-800">Injunctive Relief Carve-out</h4>
+              <p class="text-xs text-gray-500">Acceptable if mutual. Ensures either party can seek emergency court orders for actual breaches without waiting for arbitration.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PRIVACY VIEW ================= -->
+    <section id="view-privacy" class="hidden-section space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">Privacy & DSR Workflow</h2>
+        <p class="text-sm text-gray-600 mb-6">
+          Use this map to handle Data Subject Requests (DSR) under GDPR/CCPA. Time is critical: GDPR allows 30 days.
+        </p>
+        <div class="relative">
+          <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+          <!-- Step 1 -->
+          <div class="relative pl-12 pb-8">
+            <div class="absolute left-0 w-12 h-12 flex items-center justify-center">
+              <div class="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow ring-4 ring-white">1</div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-sky-300 transition-colors">
+              <h4 class="font-bold text-gray-900">Verify Identity</h4>
+              <p class="text-sm text-gray-600 mt-1">Is the requestor who they say they are? Verify via email associated with the Coralogix account.</p>
+              <div class="mt-3 text-xs flex gap-2 flex-wrap">
+                <span class="px-2 py-1 bg-white border rounded">Action: Check Ticket</span>
+                <span class="px-2 py-1 bg-white border rounded">Tool: Admin Panel</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative pl-12 pb-8">
+            <div class="absolute left-0 w-12 h-12 flex items-center justify-center">
+              <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shadow ring-4 ring-white">2</div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-sky-300 transition-colors">
+              <h4 class="font-bold text-gray-900">Classify Request</h4>
+              <p class="text-sm text-gray-600 mt-1">Is it a "Right to be Forgotten" (Deletion) or "Right to Access" (Export)?</p>
+              <div class="mt-3 flex gap-2 flex-wrap">
+                <button onclick="showPrivacyDetail('deletion')" class="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">Deletion (RTBF)</button>
+                <button onclick="showPrivacyDetail('access')" class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Access / Export</button>
+                <button onclick="showPrivacyDetail('rectify')" class="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">Rectification</button>
+              </div>
+              <div id="privacy-detail-box" class="hidden mt-3 p-3 bg-white border-l-2 border-sky-500 text-xs text-gray-600 italic"></div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative pl-12">
+            <div class="absolute left-0 w-12 h-12 flex items-center justify-center">
+              <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm shadow ring-4 ring-white">3</div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-sky-300 transition-colors">
+              <h4 class="font-bold text-gray-900">Execute & Log</h4>
+              <p class="text-sm text-gray-600 mt-1">Perform the technical action via Engineering Support. Log the completion in the Compliance Register within 30 days of receipt.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TOOLS: RISK CALCULATOR ================= -->
+    <section id="view-tools" class="hidden-section space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Calculator Input -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h2 class="text-lg font-bold text-gray-900 mb-4">Deal Risk Calculator</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Annual Contract Value (ARR)</label>
+              <select id="calc-arr" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-sky-500 focus:ring-sky-500 p-2 border">
+                <option value="1">Under $50k</option>
+                <option value="2">$50k – $200k</option>
+                <option value="3">Over $200k</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Data Sensitivity</label>
+              <select id="calc-data" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-sky-500 focus:ring-sky-500 p-2 border">
+                <option value="1">Logs / Metrics (Standard)</option>
+                <option value="2">PII (Names, Emails)</option>
+                <option value="3">Sensitive PII / PCI / HIPAA</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Non-Standard Terms?</label>
+              <div class="flex gap-4 mt-2">
+                <label class="flex items-center">
+                  <input type="radio" name="calc-terms" value="0" checked class="text-sky-600 focus:ring-sky-500">
+                  <span class="ml-2 text-sm text-gray-600">Standard MSA</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="radio" name="calc-terms" value="2" class="text-sky-600 focus:ring-sky-500">
+                  <span class="ml-2 text-sm text-gray-600">Redlines / Custom</span>
+                </label>
+              </div>
+            </div>
+            <button onclick="calculateRisk()" class="w-full bg-sky-500 text-white font-bold py-2 rounded-lg hover:bg-sky-600 transition-colors shadow">
+              Assess Risk
+            </button>
+          </div>
+        </div>
+
+        <!-- Calculator Output -->
+        <div class="bg-slate-800 p-6 rounded-xl shadow-sm text-white flex flex-col justify-center items-center text-center">
+          <div id="risk-result-icon" class="text-4xl mb-3 text-gray-500"><i class="fa-solid fa-scale-balanced"></i></div>
+          <h3 class="text-xl font-bold mb-2">Assessment Result</h3>
+          <p id="risk-result-text" class="text-slate-300 text-sm mb-4">Select deal parameters to see required approvals.</p>
+          <div id="risk-badge" class="hidden px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= INCIDENT RESPONSE ================= -->
+    <section id="view-incident" class="hidden-section space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">Legal Incident Response</h2>
+        <p class="text-sm text-gray-600 mb-6">Protocol for Data Breaches or Service Outages with Legal Implications.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="fa-solid fa-bolt text-red-500"></i>
+              <h3 class="font-bold text-red-900">Discovery (0–4h)</h3>
+            </div>
+            <ul class="text-xs text-red-800 space-y-2 list-disc pl-4">
+              <li>Notify CISO & GC immediately.</li>
+              <li>Establish Privilege (Subject: "Privileged & Confidential").</li>
+              <li>Do NOT put speculation in Slack/Email.</li>
+            </ul>
+          </div>
+          <div class="bg-orange-50 p-4 rounded-lg border border-orange-100">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="fa-solid fa-clipboard-check text-orange-500"></i>
+              <h3 class="font-bold text-orange-900">Assessment (4–24h)</h3>
+            </div>
+            <ul class="text-xs text-orange-800 space-y-2 list-disc pl-4">
+              <li>Determine Scope: Was PII impacted?</li>
+              <li>Determine Jurisdiction: GDPR (72h clock)? US State Laws?</li>
+              <li>Draft Preliminary Statement (Internal only).</li>
+            </ul>
+          </div>
+          <div class="bg-sky-50 p-4 rounded-lg border border-sky-100">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="fa-solid fa-bullhorn text-sky-500"></i>
+              <h3 class="font-bold text-sky-900">Notification (24h–72h)</h3>
+            </div>
+            <ul class="text-xs text-sky-800 space-y-2 list-disc pl-4">
+              <li>Regulators (if required).</li>
+              <li>Affected Customers (via approved templates).</li>
+              <li>Insurance Carrier notification.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content container -->
+</main>
+
+<script>
+// ── Data Store ──────────────────────────────────────────────────────────────
+const clauses = [
+  {
+    id: 1, category: "Liability", icon: "fa-shield-halved",
+    title: "Limitation of Liability (Cap)",
+    standard: "Total liability capped at 12 months' fees paid preceding the claim.",
+    fallback: "Cap at 24 months or specific fixed amount (e.g., $100k) for larger deals.",
+    walkaway: "Unlimited liability (except for standard exclusions like IP indemnity).",
+    notes: "This is the most negotiated clause. Stick to the 12-month cap for standard deals."
+  },
+  {
+    id: 2, category: "Indemnity", icon: "fa-umbrella",
+    title: "IP Indemnification",
+    standard: "We indemnify customer for 3rd party IP claims. Includes standard exclusions (unauthorized use, combination with other software).",
+    fallback: "No major fallback. This is market standard.",
+    walkaway: "Indemnifying for customer's own data or use of the platform.",
+    notes: "Crucial for SaaS. We must protect them if our code infringes."
+  },
+  {
+    id: 3, category: "Data", icon: "fa-database",
+    title: "Data Ownership",
+    standard: "Customer owns their Data. Coralogix owns the Platform, Aggregated Data, and Usage stats.",
+    fallback: "Clarify 'Aggregated Data' must be anonymized.",
+    walkaway: "Customer claiming ownership of our background IP or improvements.",
+    notes: "Ensure we can use aggregated data for ML model training."
+  },
+  {
+    id: 4, category: "Liability", icon: "fa-file-invoice-dollar",
+    title: "Consequential Damages",
+    standard: "Mutual waiver of consequential, indirect, special, and punitive damages.",
+    fallback: "Carve-outs for Breach of Confidentiality or IP Indemnity.",
+    walkaway: "No waiver of consequential damages (high risk of lost profits claims).",
+    notes: "Never remove this waiver entirely."
+  },
+  {
+    id: 5, category: "General", icon: "fa-gavel",
+    title: "Governing Law",
+    standard: "New York, USA (or Israel for IL entities, UK for EMEA).",
+    fallback: "Delaware, California. Neutral venues like England & Wales.",
+    walkaway: "Hostile jurisdictions or silent on law.",
+    notes: "Try to align with the contracting entity."
+  },
+  {
+    id: 6, category: "Data", icon: "fa-lock",
+    title: "Data Processing Agreement (DPA)",
+    standard: "Use our standard DPA based on SCCs for EEA transfers. Controller = Customer, Processor = Coralogix.",
+    fallback: "Accept customer DPA if it mirrors SCCs and doesn't add extra obligations.",
+    walkaway: "DPA that makes us a data controller or imposes HIPAA BAA obligations without appropriate scope.",
+    notes: "Always ensure sub-processor list is included as an annex."
+  },
+  {
+    id: 7, category: "General", icon: "fa-clock-rotate-left",
+    title: "Auto-Renewal & Notice",
+    standard: "Auto-renews annually. 60-day written notice required to cancel.",
+    fallback: "90-day notice acceptable for enterprise deals.",
+    walkaway: "Manual renewal only with no clear process — creates revenue risk.",
+    notes: "Ensure cancellation notice period is in the Order Form, not buried in MSA."
+  }
+];
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function navigateTo(viewId) {
+  document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+  const activeLink = document.getElementById(`nav-${viewId}`);
+  if (activeLink) activeLink.classList.add('active');
+
+  document.querySelectorAll('main section').forEach(el => el.classList.add('hidden-section'));
+  const view = document.getElementById(`view-${viewId}`);
+  if (view) view.classList.remove('hidden-section');
+
+  // Render clause containers on demand
+  if (viewId === 'contracts-msa') renderClauses('all', 'clauses-container');
+  if (viewId === 'clause-library') renderClauses('all', 'library-container');
+
+  const titles = {
+    'dashboard': 'Legal Operations Dashboard',
+    'contracts-msa': 'MSA Playbook',
+    'contracts-nda': 'NDA Checklist',
+    'clause-library': 'Clause Library',
+    'privacy': 'Privacy & GDPR',
+    'tools': 'Risk Calculator',
+    'incident': 'Incident Response'
+  };
+  document.getElementById('page-title').innerText = titles[viewId] || 'Playbook';
+}
+
+// ── Clause Rendering ────────────────────────────────────────────────────────
+function renderClauses(filter, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const filtered = filter === 'all' ? clauses : clauses.filter(c => c.category === filter);
+  filtered.forEach(c => {
+    container.innerHTML += `
+      <div class="clause-card bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
+        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center cursor-pointer" onclick="toggleCard(this)">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-sky-500">
+              <i class="fa-solid ${c.icon}"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-sm">${c.title}</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600 uppercase tracking-wide">${c.category}</span>
+          </div>
+          <i class="fa-solid fa-chevron-down text-gray-400 transition-transform duration-200"></i>
+        </div>
+        <div class="p-4 hidden">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-1">
+              <h5 class="text-xs font-bold text-green-700 uppercase">✅ Standard Position</h5>
+              <p class="text-sm text-gray-700 bg-green-50 p-3 rounded border border-green-100">${c.standard}</p>
+            </div>
+            <div class="space-y-1">
+              <h5 class="text-xs font-bold text-orange-700 uppercase">⚠️ Fallback</h5>
+              <p class="text-sm text-gray-700 bg-orange-50 p-3 rounded border border-orange-100">${c.fallback}</p>
+            </div>
+            <div class="space-y-1">
+              <h5 class="text-xs font-bold text-red-700 uppercase">🚫 Walk Away</h5>
+              <p class="text-sm text-gray-700 bg-red-50 p-3 rounded border border-red-100">${c.walkaway}</p>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-500 italic"><i class="fa-solid fa-circle-info mr-1"></i> ${c.notes}</p>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+function filterClauses(cat) { renderClauses(cat, 'clauses-container'); }
+function filterLibrary(cat) { renderClauses(cat, 'library-container'); }
+
+function toggleCard(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.fa-chevron-down');
+  body.classList.toggle('hidden');
+  icon.style.transform = body.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+  header.classList.toggle('bg-blue-50', !body.classList.contains('hidden'));
+}
+
+// ── Privacy Detail ──────────────────────────────────────────────────────────
+function showPrivacyDetail(type) {
+  const box = document.getElementById('privacy-detail-box');
+  box.classList.remove('hidden');
+  const details = {
+    deletion: '<strong>Right to be Forgotten:</strong> Check for legal holds (pending litigation). If none, trigger the "Purge User" script in the Admin Console. Notify sub-processors (AWS, Salesforce) within 15 days.',
+    access: '<strong>Right to Access:</strong> Export user account logs and profile data into JSON/CSV format. Upload to secure portal. Do NOT email raw PII.',
+    rectify: '<strong>Rectification:</strong> Update the incorrect data in the Admin Panel directly. Log the change with before/after values in the Compliance Register.'
+  };
+  box.innerHTML = details[type] || '';
+}
+
+// ── Risk Calculator ─────────────────────────────────────────────────────────
+function calculateRisk() {
+  const arr   = parseInt(document.getElementById('calc-arr').value);
+  const data  = parseInt(document.getElementById('calc-data').value);
+  const terms = parseInt(document.querySelector('input[name="calc-terms"]:checked').value);
+  const score = arr + data + terms;
+
+  const badge = document.getElementById('risk-badge');
+  const text  = document.getElementById('risk-result-text');
+  const icon  = document.getElementById('risk-result-icon');
+  badge.classList.remove('hidden', 'bg-green-100','text-green-800','bg-yellow-100','text-yellow-800','bg-red-100','text-red-800');
+
+  if (score <= 3) {
+    badge.innerText = 'Level 1: Low Risk';
+    badge.classList.add('bg-green-100','text-green-800');
+    text.innerText  = 'Standard approval. Agent can sign.';
+    icon.innerHTML  = '<i class="fa-solid fa-circle-check text-green-400 text-4xl"></i>';
+  } else if (score <= 5) {
+    badge.innerText = 'Level 2: Medium Risk';
+    badge.classList.add('bg-yellow-100','text-yellow-800');
+    text.innerText  = 'Requires Legal Counsel Review.';
+    icon.innerHTML  = '<i class="fa-solid fa-triangle-exclamation text-yellow-400 text-4xl"></i>';
+  } else {
+    badge.innerText = 'Level 3: High Risk';
+    badge.classList.add('bg-red-100','text-red-800');
+    text.innerText  = 'VP Legal + CFO Approval Required.';
+    icon.innerHTML  = '<i class="fa-solid fa-ban text-red-400 text-4xl"></i>';
+  }
+}
+
+// ── Charts ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderClauses('all', 'clauses-container');
+
+  new Chart(document.getElementById('volumeChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+      datasets: [
+        { label: 'NDAs', data: [12,19,15,25,22,30], backgroundColor: '#0ea5e9' },
+        { label: 'MSAs', data: [5,8,12,10,15,18],   backgroundColor: '#0f172a' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  new Chart(document.getElementById('riskChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Standard','Low Risk Redlines','High Risk / Complex'],
+      datasets: [{ data: [65,25,10], backgroundColor: ['#22c55e','#eab308','#ef4444'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      cutout: '70%'
+    }
+  });
+});
+</script>
+</body>
+</html>

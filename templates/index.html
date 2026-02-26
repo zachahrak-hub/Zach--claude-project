@@ -101,6 +101,24 @@
 
     .btn-logout:hover { background: var(--border); color: var(--text); }
 
+    .btn-playbook {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: #0ea5e9;
+      border: 1px solid #0284c7;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .8rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .btn-playbook:hover { background: #0284c7; }
+
     /* ── Hero strip ──────────────────────────────────────── */
     .hero-strip {
       width: 100%;
@@ -663,7 +681,10 @@
         <div class="topbar-sub">Legal &amp; Compliance Portal</div>
       </div>
     </div>
-    <a href="/logout" class="btn-logout">↩ Sign Out</a>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="/playbook" class="btn-playbook">📖 Legal Playbook</a>
+      <a href="/logout" class="btn-logout">↩ Sign Out</a>
+    </div>
   </nav>
 
   <!-- Hero Strip -->
