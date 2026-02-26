@@ -651,45 +651,47 @@ def smart_fill():
     company_text = company_text[:8000]
 
     # Read questionnaire structure with exact row/col positions
-    questionnaire_text = read_excel_questions(q_wb)
+    questions = get_questionnaire_questions(q_wb)
+    if not questions:
+        return jsonify({"error": "No questions found in the Excel file. Make sure the file has questions with empty response columns."}), 400
+
+    # Build explicit fill list for the AI
+    fill_instructions = "\n".join(
+        f'- Sheet="{q["sheet"]}", Row={q["row"]}, Col={q["col"]}, Question: {q["question"]}'
+        for q in questions
+    )
 
     system_prompt = """You are an expert vendor security questionnaire specialist.
-You have a company profile and a vendor questionnaire to fill.
-- Use fill_excel_cell to write answers directly into the cell NEXT to each question (same row, col+1)
+For EACH question listed, call fill_excel_cell with the exact sheet, row, col, and a concise answer.
 - For Yes/No questions answer exactly "Yes" or "No"
-- Keep answers concise and professional (1-2 sentences max)
+- Keep answers concise (1-2 sentences max)
 - If info not available write "To be provided"
-- Do NOT modify question columns
-- Fill EVERY question you see — do not skip any"""
+- You MUST call fill_excel_cell for EVERY question — do not skip any"""
 
-    user_message = f"""Fill this vendor questionnaire using the company profile below.
-
-The questionnaire shows each question with its exact Row and Col position.
-For each question at Row R, Col C — fill the answer into Row R, Col C+1.
+    user_message = f"""Fill each question below using the company profile.
+Call fill_excel_cell for each one using the exact sheet/row/col provided.
 
 COMPANY PROFILE:
 {company_text}
 
-QUESTIONNAIRE QUESTIONS (with exact positions):
-{questionnaire_text}
+QUESTIONS TO FILL ({len(questions)} total):
+{fill_instructions}"""
 
-Now call fill_excel_cell for every question above. Start immediately."""
+    # Use fill_excel_cell only — no need for get_excel_structure
+    fill_only_tools = [t for t in EXCEL_TOOLS if t["name"] == "fill_excel_cell"]
 
     messages = [{"role": "user", "content": user_message}]
 
-    first_call = True
     for _ in range(80):
         try:
             call_kwargs = dict(
                 model="claude-sonnet-4-5-20250929",
-                max_tokens=2048,
+                max_tokens=4096,
                 system=system_prompt,
-                tools=EXCEL_TOOLS,
+                tools=fill_only_tools,
+                tool_choice={"type": "any"},
                 messages=messages,
             )
-            if first_call:
-                call_kwargs["tool_choice"] = {"type": "any"}
-                first_call = False
             response = client.messages.create(**call_kwargs)
         except Exception as e:
             if "rate_limit" in str(e).lower():
