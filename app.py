@@ -414,18 +414,7 @@ def run_agent():
     if not task:
         return jsonify({"error": "No task received"}), 400
 
-    # Fast path: Coralogix questions answered without agentic loop
-    cx_keywords = ["coralogix"]
-    if any(kw in task.lower() for kw in cx_keywords):
-        try:
-            result = coralogix_direct_answer(task)
-            if result:
-                return jsonify(result)
-            return jsonify({"result": "Could not find a relevant answer in the Coralogix documentation. Please try rephrasing your question.", "steps": []})
-        except Exception as e:
-            return jsonify({"result": f"Error while searching Coralogix docs: {str(e)}", "steps": []})
-
-    # Standard agentic loop for everything else
+    # Standard agentic loop for everything
     # Load conversation history for this session
     sid = session.get("sid")
     if not sid:
