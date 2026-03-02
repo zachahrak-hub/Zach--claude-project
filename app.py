@@ -169,35 +169,57 @@ EXCEL_TOOLS = [
 
 
 # ── Slack search ──────────────────────────────────────────────────────────────
+# Coralogix compliance experts whose answers should be prioritized
+_SLACK_EXPERTS = ["shiran", "roman.shalev"]
+
 def _search_slack(query: str) -> str:
-    """Search Coralogix's Slack workspace using the User OAuth token."""
+    """Search Coralogix's Slack workspace.
+    Always searches twice: first for expert answers (Shiran/Roman), then broadly.
+    """
     import requests as req
     token = os.getenv("SLACK_USER_TOKEN", "")
     if not token:
         return "❌ SLACK_USER_TOKEN not configured."
-    try:
-        r = req.get(
-            "https://slack.com/api/search.messages",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"query": query, "count": 5, "highlight": False},
-            timeout=10,
-        )
-        data = r.json()
-        if not data.get("ok"):
-            return f"❌ Slack error: {data.get('error', 'unknown')}"
-        matches = data.get("messages", {}).get("matches", [])
-        if not matches:
-            return f"No Slack results found for: {query}"
-        results = []
-        for m in matches:
+
+    def _fetch(q, count=5):
+        try:
+            r = req.get(
+                "https://slack.com/api/search.messages",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"query": q, "count": count, "highlight": False},
+                timeout=10,
+            )
+            data = r.json()
+            if not data.get("ok"):
+                return []
+            return data.get("messages", {}).get("matches", [])
+        except Exception:
+            return []
+
+    results = []
+
+    # 1. Search for expert answers first (Shiran & Roman)
+    for expert in _SLACK_EXPERTS:
+        expert_matches = _fetch(f"from:{expert} {query}", count=3)
+        for m in expert_matches:
             user = m.get("username") or m.get("user", "unknown")
             channel = m.get("channel", {}).get("name", "unknown")
-            text = m.get("text", "")[:400]
-            ts = m.get("ts", "")
+            text = m.get("text", "")[:500]
+            results.append(f"⭐ EXPERT [{expert}] [#{channel}]: {text}")
+
+    # 2. Broader search across all channels
+    broad_matches = _fetch(query, count=5)
+    seen_texts = {r[r.find(']:') + 2:].strip()[:50] for r in results}
+    for m in broad_matches:
+        text = m.get("text", "")[:500]
+        if text[:50] not in seen_texts:
+            user = m.get("username") or m.get("user", "unknown")
+            channel = m.get("channel", {}).get("name", "unknown")
             results.append(f"[#{channel}] @{user}: {text}")
-        return "\n\n".join(results)
-    except Exception as e:
-        return f"❌ Slack search error: {str(e)}"
+
+    if not results:
+        return f"No Slack results found for: {query}"
+    return "\n\n".join(results)
 
 
 # ── Tool executor (browser) ────────────────────────────────────────────────────
@@ -422,10 +444,16 @@ USE THESE AS YOUR PRIMARY SOURCE before browsing the web.
 - Prospects trust you because you're specific and confident, not because you hedge.
 
 ## How to answer:
-1. Check the Knowledge Base (especially Coralogix_Quick_Facts.txt) FIRST — it has the authoritative answers.
-2. Use exact numbers: "2-hour RTO/RPO", "AES-256", "TLS 1.3", "multi-AZ", "SOC 2 Type II", etc.
-3. Only browse the web if the Knowledge Base doesn't have the answer.
+1. Search Slack FIRST using search_slack — look for how Shiran Wolfman (@shiran) or Roman Shalev (@roman.shalev) have answered this type of question before. Their answers are marked ⭐ EXPERT.
+2. Check the Knowledge Base (especially Coralogix_Quick_Facts.txt) for authoritative facts and numbers.
+3. Only browse the web if neither Slack nor the KB has the answer.
 4. ALWAYS produce an answer — never say "I need more information".
+
+## Writing style — CRITICAL:
+Model your answers after Shiran Wolfman and Roman Shalev's Slack messages.
+Their style: confident, warm, concise, uses "we" naturally, gives specific technical details without being overwhelming.
+If you found their Slack answers (marked ⭐ EXPERT), mirror their exact tone and phrasing.
+Never sound like a legal document — sound like a knowledgeable colleague writing an email.
 
 ## Response format — CRITICAL:
 - 2-4 sentences MAX. Plain prose. No bullet points, no headers, no subject lines.
