@@ -1830,6 +1830,10 @@
 
   function setStatus(id, msg) { document.getElementById(id).textContent = msg; }
 
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
   let progressIntervals = {};
   function showProgress(wrapId, barId) {
     const wrap = document.getElementById(wrapId);
