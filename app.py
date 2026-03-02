@@ -918,14 +918,26 @@ def extract_text_from_file(filepath: str, filename: str) -> str:
 
 
 def load_knowledge_base() -> str:
-    """Load all documents from the knowledge base folder into a single text."""
+    """Load all documents from the knowledge base folder(s) into a single text.
+    Always includes the repo's committed knowledge_base/ folder plus the
+    Railway volume folder (KB_DIR) when they differ."""
+    REPO_KB_DIR = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    dirs_to_load = list({KB_DIR, REPO_KB_DIR})  # deduplicate if they're the same
+
     chunks = []
-    for fname in os.listdir(KB_DIR):
-        fpath = os.path.join(KB_DIR, fname)
-        if os.path.isfile(fpath):
-            text = extract_text_from_file(fpath, fname)
-            if text.strip():
-                chunks.append(f"\n\n===== Document: {fname} =====\n{text[:8000]}")
+    seen = set()
+    for folder in dirs_to_load:
+        if not os.path.isdir(folder):
+            continue
+        for fname in os.listdir(folder):
+            if fname in seen:
+                continue
+            fpath = os.path.join(folder, fname)
+            if os.path.isfile(fpath):
+                text = extract_text_from_file(fpath, fname)
+                if text.strip():
+                    chunks.append(f"\n\n===== Document: {fname} =====\n{text[:8000]}")
+                    seen.add(fname)
     return "\n".join(chunks)
 
 
