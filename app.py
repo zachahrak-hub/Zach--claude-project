@@ -172,6 +172,9 @@ EXCEL_TOOLS = [
 # Coralogix compliance experts whose answers should be prioritized
 _SLACK_EXPERTS = ["shiran", "roman.shalev"]
 
+# Key compliance channels to always search
+_SLACK_CHANNELS = ["compliance-interface", "compliance-private", "legal-compliance-procurement"]
+
 def _search_slack(query: str) -> str:
     """Search Coralogix's Slack workspace.
     Always searches twice: first for expert answers (Shiran/Roman), then broadly.
@@ -207,7 +210,17 @@ def _search_slack(query: str) -> str:
             text = m.get("text", "")[:500]
             results.append(f"⭐ EXPERT [{expert}] [#{channel}]: {text}")
 
-    # 2. Broader search across all channels
+    # 2. Search in key compliance channels
+    for ch in _SLACK_CHANNELS:
+        ch_matches = _fetch(f"in:#{ch} {query}", count=3)
+        for m in ch_matches:
+            user = m.get("username") or m.get("user", "unknown")
+            text = m.get("text", "")[:500]
+            entry = f"[#{ch}] @{user}: {text}"
+            if text[:50] not in {r[r.find(']:') + 2:].strip()[:50] for r in results}:
+                results.append(entry)
+
+    # 3. Broader search across all channels
     broad_matches = _fetch(query, count=5)
     seen_texts = {r[r.find(']:') + 2:].strip()[:50] for r in results}
     for m in broad_matches:
