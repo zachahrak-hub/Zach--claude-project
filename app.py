@@ -131,6 +131,17 @@ TOOLS = [
             "required": ["key"],
         },
     },
+    {
+        "name": "search_slack",
+        "description": "Search Coralogix's internal Slack workspace for relevant conversations, past Q&A, and expert knowledge. Use this BEFORE browsing the web when answering compliance, legal, or security questions — internal Slack often has the best answers.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query, e.g. 'RTO RPO disaster recovery' or 'SOC2 audit report'"}
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 # ── Excel tools ────────────────────────────────────────────────────────────────
@@ -155,6 +166,38 @@ EXCEL_TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
 ]
+
+
+# ── Slack search ──────────────────────────────────────────────────────────────
+def _search_slack(query: str) -> str:
+    """Search Coralogix's Slack workspace using the User OAuth token."""
+    import requests as req
+    token = os.getenv("SLACK_USER_TOKEN", "")
+    if not token:
+        return "❌ SLACK_USER_TOKEN not configured."
+    try:
+        r = req.get(
+            "https://slack.com/api/search.messages",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"query": query, "count": 5, "highlight": False},
+            timeout=10,
+        )
+        data = r.json()
+        if not data.get("ok"):
+            return f"❌ Slack error: {data.get('error', 'unknown')}"
+        matches = data.get("messages", {}).get("matches", [])
+        if not matches:
+            return f"No Slack results found for: {query}"
+        results = []
+        for m in matches:
+            user = m.get("username") or m.get("user", "unknown")
+            channel = m.get("channel", {}).get("name", "unknown")
+            text = m.get("text", "")[:400]
+            ts = m.get("ts", "")
+            results.append(f"[#{channel}] @{user}: {text}")
+        return "\n\n".join(results)
+    except Exception as e:
+        return f"❌ Slack search error: {str(e)}"
 
 
 # ── Tool executor (browser) ────────────────────────────────────────────────────
@@ -189,6 +232,8 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
         elif tool_name == "press_key":
             page.keyboard.press(tool_input["key"])
             return f"✅ Pressed key: {tool_input['key']}"
+        elif tool_name == "search_slack":
+            return _search_slack(tool_input["query"])
         else:
             return f"❌ Unknown tool: {tool_name}"
     except Exception as e:
