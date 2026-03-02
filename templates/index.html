@@ -719,26 +719,21 @@
 
     <!-- ═══ TAB 1: Browser Agent ═══ -->
     <div class="tab-content active" id="tab-browser">
+      <!-- Conversation history -->
+      <div id="agentConversation"></div>
+
+      <!-- Input card -->
       <div class="card">
-        <div class="card-title">Browser Agent</div>
+        <div class="card-title" id="agentCardTitle">Browser Agent</div>
         <div class="card-sub">Describe a task and the agent will browse the web to find the answer.</div>
         <label>Task description</label>
         <textarea id="task" placeholder="e.g. Does Coralogix use customer data to train AI models?&#10;(Ctrl+Enter to run)"></textarea>
         <div class="btn-row">
           <button class="btn-primary" id="runBtn" onclick="runAgent()">▶ Run Agent</button>
+          <button class="btn-secondary" onclick="newAgentConversation()">↺ New Conversation</button>
           <button class="btn-secondary" onclick="closeBrowser()">✕ Close Browser</button>
         </div>
         <div class="status" id="browserStatus"></div>
-      </div>
-
-      <div class="card" id="browserResultCard" style="display:none">
-        <div class="section-label" style="margin-bottom:12px;">Final Result</div>
-        <div class="result-block result-success" id="resultText"></div>
-      </div>
-
-      <div class="card" id="browserSourcesCard" style="display:none">
-        <div class="section-label" style="margin-bottom:12px;">📎 Sources</div>
-        <div id="sourcesList"></div>
       </div>
 
       <div class="card" id="browserStepsCard" style="display:none">
@@ -1655,13 +1650,19 @@
     const task = document.getElementById("task").value.trim();
     if (!task) { alert("Please enter a task"); return; }
     document.getElementById("browserStepsCard").style.display = "none";
-    document.getElementById("browserResultCard").style.display = "none";
-    document.getElementById("browserSourcesCard").style.display = "none";
     document.getElementById("browserStepsList").innerHTML = "";
-    document.getElementById("sourcesList").innerHTML = "";
+
+    appendAgentBubble("user", task);
+    document.getElementById("task").value = "";
+    document.getElementById("agentCardTitle").textContent = "Follow-up question";
+
     const btn = document.getElementById("runBtn");
     btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…';
-    setStatus("browserStatus", "⏳ Agent is starting…");
+    setStatus("browserStatus", "⏳ Agent is thinking…");
+
+    const placeholderId = "agent-placeholder-" + Date.now();
+    appendAgentBubble("agent-loading", "…", placeholderId);
+
     try {
       const res = await fetch("/agent", {
         method: "POST",
@@ -1671,41 +1672,64 @@
       const data = await res.json();
       renderSteps(data.steps || [], "browserStepsList", "browserStepsCard");
       const fullText = data.result || data.error || "No result";
-      renderResultWithSources(fullText);
+      const placeholder = document.getElementById(placeholderId);
+      if (placeholder) placeholder.remove();
+      appendAgentBubble("agent", fullText);
       setStatus("browserStatus", "✅ Done!");
     } catch (err) {
+      const placeholder = document.getElementById(placeholderId);
+      if (placeholder) placeholder.remove();
+      appendAgentBubble("agent-error", "❌ " + err.message);
       setStatus("browserStatus", "❌ " + err.message);
     } finally {
       btn.disabled = false; btn.innerHTML = "▶ Run Agent";
     }
   }
 
-  function renderResultWithSources(text) {
-    const parts = text.split('📎 Sources:');
-    const answer = parts[0].trim();
-    const sourcesRaw = parts[1] ? parts[1].trim() : null;
+  function appendAgentBubble(role, text, id) {
+    const conv = document.getElementById("agentConversation");
+    const wrap = document.createElement("div");
+    if (id) wrap.id = id;
+    wrap.style.cssText = "margin-bottom:12px;";
 
-    document.getElementById("browserResultCard").style.display = "block";
-    document.getElementById("resultText").textContent = answer;
-
-    if (sourcesRaw) {
-      const urls = sourcesRaw.split('\n')
-        .map(l => l.replace(/^[-•*]\s*/, '').trim())
-        .filter(l => l.startsWith('http'));
-
-      if (urls.length > 0) {
-        const list = document.getElementById("sourcesList");
-        list.innerHTML = urls.map(url => {
-          const display = url.replace('https://', '').replace('http://', '');
-          return `<a class="source-link" href="${url}" target="_blank" rel="noopener">
-            <span class="source-icon">📄</span>
-            <span>${display}</span>
-            <span style="margin-left:auto;font-size:11px;opacity:.5;">↗</span>
-          </a>`;
-        }).join('');
-        document.getElementById("browserSourcesCard").style.display = "block";
+    if (role === "user") {
+      wrap.innerHTML = `<div style="display:flex;justify-content:flex-end;">
+        <div style="background:var(--accent);color:#fff;border-radius:16px 16px 4px 16px;padding:10px 16px;max-width:80%;white-space:pre-wrap;font-size:.9rem;line-height:1.5;">${escapeHtml(text)}</div>
+      </div>`;
+    } else if (role === "agent-loading") {
+      wrap.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 0;">
+        <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
+        <span style="color:var(--text3);font-size:.85rem;">Thinking…</span>
+      </div>`;
+    } else if (role === "agent-error") {
+      wrap.innerHTML = `<div style="color:#f87171;padding:10px 0;font-size:.9rem;">${escapeHtml(text)}</div>`;
+    } else {
+      const parts = text.split('📎 Sources:');
+      const answer = parts[0].trim();
+      const sourcesRaw = parts[1] ? parts[1].trim() : null;
+      let sourcesHtml = '';
+      if (sourcesRaw) {
+        const urls = sourcesRaw.split('\n').map(l => l.replace(/^[-•*]\s*/, '').trim()).filter(l => l.startsWith('http'));
+        if (urls.length) {
+          sourcesHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+            <div style="font-size:.75rem;color:var(--text3);margin-bottom:6px;">📎 Sources</div>
+            ${urls.map(u => `<a href="${u}" target="_blank" rel="noopener" style="display:block;color:var(--accent);font-size:.8rem;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u}</a>`).join('')}
+          </div>`;
+        }
       }
+      wrap.innerHTML = `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:14px 16px;max-width:90%;white-space:pre-wrap;font-size:.9rem;line-height:1.6;color:var(--text1);">${escapeHtml(answer)}${sourcesHtml}</div>`;
     }
+
+    conv.appendChild(wrap);
+    wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function newAgentConversation() {
+    await fetch("/clear-agent", { method: "POST" });
+    document.getElementById("agentConversation").innerHTML = "";
+    document.getElementById("browserStepsCard").style.display = "none";
+    document.getElementById("agentCardTitle").textContent = "Browser Agent";
+    setStatus("browserStatus", "");
   }
 
   async function closeBrowser() {

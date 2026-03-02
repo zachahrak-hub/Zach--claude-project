@@ -40,6 +40,10 @@ def login_required(f):
 import threading
 _local = threading.local()
 
+# ── Agent conversation histories ───────────────────────────────────────────────
+# Keyed by session id; stores clean user/assistant text pairs only
+_agent_histories: dict = {}
+
 
 def get_page():
     if not getattr(_local, "page", None):
@@ -342,7 +346,16 @@ def run_agent():
             return jsonify({"result": f"Error while searching Coralogix docs: {str(e)}", "steps": []})
 
     # Standard agentic loop for everything else
-    messages = [{"role": "user", "content": task}]
+    # Load conversation history for this session
+    sid = session.get("sid")
+    if not sid:
+        import secrets
+        sid = secrets.token_hex(16)
+        session["sid"] = sid
+    history = _agent_histories.get(sid, [])
+
+    # Build messages: history (text-only) + new user message
+    messages = history + [{"role": "user", "content": task}]
     steps = []
 
     # Load knowledge base to inject into system prompt
@@ -401,11 +414,24 @@ For weather questions in Israel, navigate to https://ims.gov.il
                 messages.append({"role": "user", "content": tool_results})
             else:
                 final_text = next((b.text for b in response.content if hasattr(b, "text")), "")
+                # Save clean history (keep last 10 exchanges = 20 messages)
+                history.append({"role": "user", "content": task})
+                history.append({"role": "assistant", "content": final_text})
+                _agent_histories[sid] = history[-20:]
                 return jsonify({"result": final_text, "steps": steps})
     except Exception as e:
         return jsonify({"result": f"Error: {str(e)}", "steps": steps})
 
     return jsonify({"result": "Reached iteration limit", "steps": steps})
+
+
+@app.route("/clear-agent", methods=["POST"])
+@login_required
+def clear_agent():
+    sid = session.get("sid")
+    if sid and sid in _agent_histories:
+        del _agent_histories[sid]
+    return jsonify({"status": "ok"})
 
 
 # ── Vendor Vetting route ───────────────────────────────────────────────────────
