@@ -1,0 +1,79 @@
+# Coralogix — Quick Compliance & Security Facts
+# Use this as the PRIMARY reference for answering prospect and customer questions.
+
+## Infrastructure & Architecture
+- Cloud provider: AWS (100%)
+- Deployment model: SaaS, multi-tenant
+- High availability: Multi-AZ (multi-Availability Zone) per region
+- Regions available: USA (us-east-2), Sweden (eu-north-1), India (ap-south-1), Singapore (ap-southeast-1), Indonesia (ap-southeast-3)
+- Customer data is physically separated per region and logically separated per customer using private encryption keys
+- Automated scaling and load balancing via AWS Gateway Load Balancers
+- Infrastructure managed as code
+
+## BC/DR — Business Continuity & Disaster Recovery
+- RTO (Recovery Time Objective): 2 hours
+- RPO (Recovery Point Objective): 2 hours
+- BCP/DR program is ingrained as part of the service
+- Infrastructure is managed as code — DR environments can be rapidly activated from pre-configured templates
+- Annual tabletop DR exercises conducted with CISO, DevOps, SecOps and Compliance teams
+- Last DR drills: May 22 and June 10 (two full days)
+- Cross-region data replication in place for durability
+
+## Data Storage & Replication
+- Customer logs stored in customer-owned AWS S3 buckets OR in Coralogix's indexing system (AWS OpenSearch + EBS)
+- Data stored in 2 replications across 2 availability zones
+- Daily full backups + continuous live duplication
+- Regular restoration tests to verify data integrity
+- Retention period defined per customer contract
+
+## Encryption
+- Data at rest: AES-256
+- Data in transit: TLS 1.3
+- Key management: AWS KMS (Key Management Service)
+- Customers can manage their own keys on their own S3 buckets
+- Automatic key rotation supported
+
+## Security & Compliance Certifications
+- SOC 2 Type II certified
+- ISO 27001 certified
+- GDPR compliant (Israel recognized as adequate country under GDPR)
+- Annual penetration testing performed by third-party vendors
+- 24/7 security monitoring using Coralogix's own Security Traffic Analyzer (IDS/IPS)
+- DDoS protection via CloudFlare at the edge
+
+## Access & Identity
+- Multi-tenancy framework: physically separated per region, logically per customer
+- Role-based access control (RBAC)
+- SSO support available
+
+## Incident Response
+- 24/7 monitoring and alerting
+- Dedicated Security and Operations teams
+- Incident response procedures with defined escalation paths
+- Customers notified per contractual SLA obligations
+
+## Data Privacy
+- Coralogix does NOT use customer data to train AI models
+- Customer data is not shared with third parties except as required by law
+- Data deletion: cryptographic wiping via AWS secure deletion at end of retention period
+- GDPR data residency: customers choose their hosting region
+
+## Key Answers for Common Prospect Questions
+
+Q: What is your RTO/RPO?
+A: We maintain a 2-hour RTO and 2-hour RPO, backed by multi-AZ deployment, infrastructure-as-code, and pre-configured DR environments that can be activated rapidly.
+
+Q: How do you mitigate regional outages?
+A: We leverage AWS multi-Availability Zone resilience and continuous cross-region data replication. Our infrastructure is managed as code, enabling our team to rapidly activate pre-configured DR environments to maintain our strict 2-hour RTO/RPO.
+
+Q: Where is my data stored?
+A: Your data is stored in the AWS region of your choice (USA, Sweden, India, Singapore, or Indonesia). You can store logs in your own S3 buckets, retaining full control, or in Coralogix's indexing system with AES-256 encryption at rest and TLS 1.3 in transit.
+
+Q: Do you use customer data to train AI models?
+A: No. Coralogix does not use customer data to train AI models.
+
+Q: What certifications do you hold?
+A: Coralogix holds SOC 2 Type II and ISO 27001 certifications, and is GDPR compliant.
+
+Q: How is data encrypted?
+A: All data is encrypted at rest using AES-256 and in transit using TLS 1.3. Encryption keys are managed via AWS KMS, with optional customer-managed keys on their own S3 buckets.
