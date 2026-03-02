@@ -177,9 +177,11 @@ _SLACK_CHANNELS = ["compliance-interface", "compliance-private", "legal-complian
 
 def _search_slack(query: str) -> str:
     """Search Coralogix's Slack workspace.
-    Always searches twice: first for expert answers (Shiran/Roman), then broadly.
+    Runs all queries in parallel for speed, prioritizing expert answers (Shiran/Roman).
     """
     import requests as req
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     token = os.getenv("SLACK_USER_TOKEN", "")
     if not token:
         return "❌ SLACK_USER_TOKEN not configured."
@@ -199,40 +201,71 @@ def _search_slack(query: str) -> str:
         except Exception:
             return []
 
-    results = []
-
-    # 1. Search for expert answers first (Shiran & Roman)
+    # Build all queries upfront: (type, label, query_string, count)
+    all_queries = []
     for expert in _SLACK_EXPERTS:
-        expert_matches = _fetch(f"from:{expert} {query}", count=3)
-        for m in expert_matches:
-            user = m.get("username") or m.get("user", "unknown")
-            channel = m.get("channel", {}).get("name", "unknown")
-            text = m.get("text", "")[:500]
-            results.append(f"⭐ EXPERT [{expert}] [#{channel}]: {text}")
-
-    # 2. Search in key compliance channels
+        all_queries.append(("expert", expert, f"from:{expert} {query}", 3))
     for ch in _SLACK_CHANNELS:
-        ch_matches = _fetch(f"in:#{ch} {query}", count=3)
-        for m in ch_matches:
-            user = m.get("username") or m.get("user", "unknown")
+        all_queries.append(("channel", ch, f"in:#{ch} {query}", 3))
+    all_queries.append(("broad", None, query, 5))
+
+    # Run all queries in parallel
+    buckets: dict = {"expert": [], "channel": [], "broad": []}
+    with ThreadPoolExecutor(max_workers=len(all_queries)) as executor:
+        future_to_meta = {
+            executor.submit(_fetch, q, count): (qtype, label)
+            for (qtype, label, q, count) in all_queries
+        }
+        for future in as_completed(future_to_meta):
+            qtype, label = future_to_meta[future]
+            buckets[qtype].append((label, future.result()))
+
+    # Assemble results in priority order with deduplication
+    results = []
+    seen: set = set()
+
+    for label, matches in buckets["expert"]:
+        for m in matches:
             text = m.get("text", "")[:500]
-            entry = f"[#{ch}] @{user}: {text}"
-            if text[:50] not in {r[r.find(']:') + 2:].strip()[:50] for r in results}:
-                results.append(entry)
+            if text[:50] not in seen:
+                seen.add(text[:50])
+                channel = m.get("channel", {}).get("name", "unknown")
+                results.append(f"⭐ EXPERT [{label}] [#{channel}]: {text}")
 
-    # 3. Broader search across all channels
-    broad_matches = _fetch(query, count=5)
-    seen_texts = {r[r.find(']:') + 2:].strip()[:50] for r in results}
-    for m in broad_matches:
-        text = m.get("text", "")[:500]
-        if text[:50] not in seen_texts:
-            user = m.get("username") or m.get("user", "unknown")
-            channel = m.get("channel", {}).get("name", "unknown")
-            results.append(f"[#{channel}] @{user}: {text}")
+    for label, matches in buckets["channel"]:
+        for m in matches:
+            text = m.get("text", "")[:500]
+            if text[:50] not in seen:
+                seen.add(text[:50])
+                user = m.get("username") or m.get("user", "unknown")
+                results.append(f"[#{label}] @{user}: {text}")
 
+    for label, matches in buckets["broad"]:
+        for m in matches:
+            text = m.get("text", "")[:500]
+            if text[:50] not in seen:
+                seen.add(text[:50])
+                user = m.get("username") or m.get("user", "unknown")
+                channel = m.get("channel", {}).get("name", "unknown")
+                results.append(f"[#{channel}] @{user}: {text}")
+
+    # #7 — Honest fallback: no internal data at all
     if not results:
-        return f"No Slack results found for: {query}"
-    return "\n\n".join(results)
+        return (
+            f"No Slack results found for: {query}\n\n"
+            "⚠️ NO INTERNAL DATA FOUND. Do not guess. Respond with 🔴 and tell the user "
+            "to verify this with Shiran or Roman directly."
+        )
+
+    # #7 — Honest fallback: results exist but none from experts
+    has_expert = any(r.startswith("⭐ EXPERT") for r in results)
+    output = "\n\n".join(results)
+    if not has_expert:
+        output += (
+            "\n\n⚠️ No expert answers from Shiran or Roman found for this query. "
+            "Channel results only — use 🔴 confidence and recommend verifying with Shiran or Roman."
+        )
+    return output
 
 
 # ── Tool executor (browser) ────────────────────────────────────────────────────
