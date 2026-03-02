@@ -527,6 +527,24 @@ For weather questions in Israel, navigate to https://ims.gov.il
                 final_text = next((b.text for b in response.content if hasattr(b, "text")), "")
                 if not final_text.strip():
                     final_text = "I was unable to generate a response. Please try rephrasing your question."
+                # Strip common bad prefixes that the model sometimes adds despite instructions
+                bad_prefixes = [
+                    r"^Based on the knowledge base[,.]?\s*",
+                    r"^According to our documents?[,.]?\s*",
+                    r"^Based on the information(?: provided)?[,.]?\s*",
+                    r"^According to the (?:knowledge base|KB|documents?)[,.]?\s*",
+                    r"^From the knowledge base[,.]?\s*",
+                    r"^Let me check[^.]*\.\s*",
+                    r"^I'll look into[^.]*\.\s*",
+                    r"^I searched[^.]*\.\s*",
+                    r"^Looking at[^.]*,\s*",
+                ]
+                for pattern in bad_prefixes:
+                    final_text = re.sub(pattern, "", final_text, flags=re.IGNORECASE)
+                final_text = final_text.strip()
+                # Capitalize first letter if it was lowercased by stripping
+                if final_text and final_text[0].islower():
+                    final_text = final_text[0].upper() + final_text[1:]
                 # Save clean history (keep last 10 exchanges = 20 messages)
                 history.append({"role": "user", "content": task})
                 history.append({"role": "assistant", "content": final_text})
