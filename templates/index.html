@@ -1576,6 +1576,19 @@
         <div id="vendor-agent-steps" style="margin-bottom:12px"></div>
         <div id="vendor-docs-links" style="margin-bottom:12px"></div>
         <div class="insights-box" id="vendor-report-body">Running vetting agent...</div>
+
+        <!-- Follow-up chat -->
+        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:10px">💬 Follow-up Questions</div>
+          <div id="vendor-chat-history" style="margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="vendor-chat-input"
+              placeholder="e.g. Are they GDPR compliant? Do they have SOC 2?"
+              style="flex:1"
+              onkeydown="if(event.key==='Enter') sendVendorChat()">
+            <button class="btn-primary" onclick="sendVendorChat()" id="vendor-chat-btn" style="white-space:nowrap">Send</button>
+          </div>
+        </div>
       </div>
     </div><!-- /tab-vendor -->
 
@@ -2308,11 +2321,17 @@
       }
 
       body.textContent = data.report || "No report generated.";
+      document.getElementById("vendor-chat-history").innerHTML = "";
 
-      // Refresh table
+      // Refresh table and get the new vendor id for follow-up chat
       document.getElementById("vendor-name").value = "";
       fileInput.value = "";
-      loadVendors();
+      await loadVendors();
+      // Set current vendor id to the most recently saved (first in reversed list)
+      const latestRes = await fetch("/list-vendors");
+      const latestData = await latestRes.json();
+      const all = latestData.vendors || [];
+      if (all.length) _currentVendorId = all[all.length - 1].id;
 
     } catch(e) {
       body.textContent = "❌ Request failed: " + e.message;
@@ -2366,7 +2385,58 @@
     docs.innerHTML = linksHtml ? `<div style="margin-bottom:10px">${linksHtml}</div>` : "";
 
     body.textContent = v.report || "No report saved.";
+    _currentVendorId = v.id;
+    // Clear previous chat
+    document.getElementById("vendor-chat-history").innerHTML = "";
+    document.getElementById("vendor-chat-input").value = "";
     card.scrollIntoView({ behavior: "smooth" });
+  }
+
+  let _currentVendorId = null;
+
+  async function sendVendorChat() {
+    const input = document.getElementById("vendor-chat-input");
+    const question = input.value.trim();
+    if (!question) return;
+
+    const btn     = document.getElementById("vendor-chat-btn");
+    const history = document.getElementById("vendor-chat-history");
+
+    // Append user message
+    history.innerHTML += `
+      <div style="margin-bottom:10px">
+        <div style="font-size:0.82rem;font-weight:600;color:var(--accent);margin-bottom:3px">You</div>
+        <div style="font-size:0.88rem;color:var(--text1)">${question}</div>
+      </div>`;
+
+    input.value = "";
+    btn.disabled = true;
+    btn.textContent = "…";
+
+    // Placeholder for AI answer
+    const answerId = "vc-" + Date.now();
+    history.innerHTML += `
+      <div id="${answerId}" style="margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent)">
+        <div style="font-size:0.82rem;font-weight:600;color:var(--text3);margin-bottom:3px">AI</div>
+        <div style="font-size:0.88rem;color:var(--text2)">Thinking…</div>
+      </div>`;
+    history.lastElementChild.scrollIntoView({ behavior: "smooth" });
+
+    try {
+      const res  = await fetch("/vendor-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor_id: _currentVendorId, question })
+      });
+      const data = await res.json();
+      const answer = data.answer || data.error || "No answer.";
+      document.getElementById(answerId).querySelector("div:last-child").textContent = answer;
+    } catch(e) {
+      document.getElementById(answerId).querySelector("div:last-child").textContent = "❌ Error: " + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send";
+    }
   }
 </script>
 </body>

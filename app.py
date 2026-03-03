@@ -1746,6 +1746,43 @@ def delete_vendor():
     return jsonify({"ok": True})
 
 
+@app.route("/vendor-chat", methods=["POST"])
+@login_required
+def vendor_chat():
+    """Answer a follow-up question about a vetted vendor, using the saved report as context."""
+    try:
+        data = request.get_json(silent=True) or {}
+        vendor_id = data.get("vendor_id", "")
+        question  = data.get("question", "").strip()
+        if not question:
+            return jsonify({"error": "Question required"}), 400
+
+        # Load vendor report for context
+        vendor = next((v for v in load_vendors() if v["id"] == vendor_id), None)
+        report_ctx = f"Vendor vetting report:\n{vendor['report']}" if vendor else "No vetting report available."
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": f"""You are a concise vendor security analyst. Answer the user's follow-up question about this vendor in 1-3 sentences max. Be direct and specific.
+
+{report_ctx}
+
+Question: {question}
+
+Rules:
+- Answer in 1-3 sentences only. No bullet points.
+- End with: 🟢 High confidence / 🟡 Medium confidence / 🔴 Low confidence"""
+            }]
+        )
+        answer = next((b.text for b in msg.content if hasattr(b, "text")), "No answer.")
+        return jsonify({"answer": answer})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
