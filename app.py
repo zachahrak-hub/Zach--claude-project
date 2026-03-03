@@ -668,27 +668,20 @@ def _vet_vendor_impl():
     pages = {url: content for url, content in zip(urls, results) if content.strip()}
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items()) if pages else "No pages could be fetched."
 
-    # Step 3: Generate structured vetting report + extract trust center & docs
+    # Step 3: Generate concise vetting verdict
     report_resp = client.messages.create(
         model="claude-sonnet-4-5-20250929",
-        max_tokens=2048,
+        max_tokens=600,
         messages=[{"role": "user", "content":
-            f"You are a vendor security analyst. Generate a structured vetting report for '{company_name}' "
-            f"based on the web pages below.\n\n"
-            f"Include these sections:\n"
-            f"## Company Overview\n"
-            f"## Security Certifications (SOC 2, ISO 27001, PCI-DSS, etc.)\n"
-            f"## Data Privacy & GDPR\n"
-            f"## Data Security Practices\n"
-            f"## Known Issues or Risks\n\n"
-            f"## 🎯 Key Vetting Criteria\n"
-            f"For each criterion below, answer with ✅ Pass / ❌ Fail / ⚠️ Unclear — followed by a one-line explanation:\n"
-            f"1. **Data Training** — Does the vendor train AI/ML models on customer data?\n"
-            f"2. **Data Ownership** — Is it explicitly stated that customer data always belongs to the customer?\n"
-            f"3. **Data Retention** — Is retention minimized and strictly limited to the stated purpose only?\n"
-            f"4. **Legal Risk** — Is the vendor classifiable as low risk by legal/regulatory definition?\n\n"
-            f"## Overall Verdict — state Low / Medium / High risk and a one-line summary\n\n"
-            f"Be concise. If info not found on the pages, say 'Not found on public pages'.\n\n"
+            f"You are a legal & compliance analyst at Coralogix. Evaluate '{company_name}' against our 4 vendor criteria.\n"
+            f"Be extremely concise — one line per criterion. Professional tone, no fluff.\n\n"
+            f"Format EXACTLY like this (no extra text, no headers, no sections):\n\n"
+            f"1. Data Training — ✅/⚠️/❌ [one sentence]\n"
+            f"2. Data Ownership — ✅/⚠️/❌ [one sentence]\n"
+            f"3. Data Retention — ✅/⚠️/❌ [one sentence]\n"
+            f"4. Legal Risk — ✅/⚠️/❌ [one sentence]\n\n"
+            f"Overall: ✅ Low Risk / ⚠️ Medium Risk / ❌ High Risk — [one sentence max]\n\n"
+            f"If info is missing from the pages, say '⚠️ Not confirmed publicly' for that criterion.\n\n"
             f"WEB PAGES:\n{context}"}]
     )
     report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
@@ -1767,14 +1760,13 @@ def vendor_chat():
             max_tokens=512,
             messages=[{
                 "role": "user",
-                "content": f"""You are a concise vendor security analyst. Answer the user's follow-up question about this vendor in 1-3 sentences max. Be direct and specific.
+                "content": f"""You are a legal & compliance analyst at Coralogix. Answer directly and professionally in 1-2 sentences max. No fluff.
 
 {report_ctx}
 
 Question: {question}
 
-Rules:
-- Answer in 1-3 sentences only. No bullet points.
+- 1-2 sentences only. No bullet points. No preamble.
 - End with: 🟢 High confidence / 🟡 Medium confidence / 🔴 Low confidence"""
             }]
         )
