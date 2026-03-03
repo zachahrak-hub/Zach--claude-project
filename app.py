@@ -674,7 +674,8 @@ def _vet_vendor_impl():
         max_tokens=1200,
         messages=[{"role": "user", "content":
             f"You are a legal & compliance analyst at Coralogix vetting '{company_name}'.\n"
-            f"One line per criterion. Professional, direct. No fluff. If info missing → ⚠️ Not confirmed publicly.\n\n"
+            f"One line per criterion. Professional, direct. No fluff. If info missing → ⚠️ Not confirmed publicly.\n"
+            f"CRITICAL: No markdown. No ** bold. No # headers. Plain text only.\n\n"
             f"Format EXACTLY like this:\n\n"
             f"🔐 SECURITY\n"
             f"1. Certifications — ✅/⚠️/❌ [SOC 2 Type II, ISO 27001, PCI-DSS status]\n"
@@ -700,10 +701,18 @@ def _vet_vendor_impl():
             f"17. Data Retention — ✅/⚠️/❌ [is retention highly minimized and limited to stated purpose only?]\n"
             f"18. Legal Risk (AI) — ✅/⚠️/❌ [is the vendor classified as low risk by legal definition?]\n\n"
             f"🤖 AI VERDICT: ✅ APPROVED / ⚠️ CONDITIONAL APPROVAL / ❌ REJECTED\n"
-            f"[One sentence: overall risk level + key reason + recommended action]\n\n"
+            f"[One sentence: overall risk level + key reason]\n\n"
+            f"📌 BOTTOM LINE\n"
+            f"Decision: USE / USE WITH CONDITIONS / DO NOT USE\n"
+            f"Risk Level: Low / Medium / High\n"
+            f"[One sentence action: what to do next]\n\n"
             f"WEB PAGES:\n{context}"}]
     )
     report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
+    # Strip markdown formatting
+    report = re.sub(r'\*\*(.+?)\*\*', r'\1', report)  # **bold** → plain
+    report = re.sub(r'\*(.+?)\*',   r'\1', report)    # *italic* → plain
+    report = re.sub(r'^#{1,3}\s+',  '',    report, flags=re.MULTILINE)  # ## headers
 
     # Step 4: Extract trust center URL and document links from fetched pages
     links_resp = client.messages.create(
