@@ -1959,36 +1959,35 @@ Question: {question}
 
 
 @app.route("/login", methods=["GET", "POST"])
-@limiter.limit("20 per minute; 5 per 10 seconds")
 def login():
     if session.get("logged_in"):
         return redirect(url_for("index"))
     error = None
     if request.method == "POST":
-        username = request.form.get("username", "").strip()[:64]
-        password = request.form.get("password", "")[:128]
-        ip = request.remote_addr or "unknown"
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        app_user = os.getenv("APP_USERNAME", "admin").strip()
+        app_pass = os.getenv("APP_PASSWORD", "").strip()
+        app_hash = os.getenv("APP_PASSWORD_HASH", "").strip()
 
-        # CSRF check
-        if not _verify_csrf():
-            _audit("login_csrf_fail")
-            error = "Security validation failed. Please try again."
-        # Lockout check
-        elif (mins := _check_lockout(ip)) > 0:
-            _audit("login_locked", f"username={username}")
-            error = f"Too many failed attempts. Try again in {mins} minute(s)."
-        elif _verify_user(username, password):
-            _clear_attempts(ip)
+        user_ok = username.lower() == app_user.lower()
+        if app_hash and app_hash.startswith(("pbkdf2:", "scrypt:", "argon2:")):
+            pass_ok = check_password_hash(app_hash, password)
+        else:
+            pass_ok = (password == app_pass)
+
+        if user_ok and pass_ok:
             session.clear()
             session["logged_in"] = True
             session["username"]  = username
             session.permanent    = True
-            _get_csrf_token()   # mint fresh CSRF token post-login
+            _get_csrf_token()
             _audit("login_success", f"username={username}")
             return redirect(url_for("index"))
         else:
+            ip = request.remote_addr or "unknown"
             _record_failure(ip)
-            _audit("login_fail", f"username={username}")
+            _audit("login_fail", f"username={username} user_ok={user_ok} pass_ok={pass_ok}")
             error = "Invalid username or password"
 
     return render_template("login.html", error=error)
