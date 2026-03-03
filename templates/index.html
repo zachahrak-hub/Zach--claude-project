@@ -715,6 +715,9 @@
       <div class="tab" onclick="switchTab('contract')">
         <span class="tab-icon">📑</span> Contract KPI
       </div>
+      <div class="tab" onclick="switchTab('vendor')">
+        <span class="tab-icon">🔍</span> Vendor Vetting
+      </div>
     </div>
 
     <!-- ═══ TAB 1: Browser Agent ═══ -->
@@ -1496,6 +1499,86 @@
       </div>
     </div><!-- /tab-contract -->
 
+    <!-- ═══ TAB 7: Vendor Vetting ═══ -->
+    <div class="tab-content" id="tab-vendor">
+      <div class="card">
+        <div class="card-title">🔍 Vendor Vetting</div>
+        <div class="card-sub">AI-powered vendor security review — automatically browses the vendor's trust center, privacy policy, and DPA, then evaluates all 4 Coralogix criteria.</div>
+
+        <!-- Vetting Criteria Reference -->
+        <div style="margin:18px 0 20px;padding:14px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent)">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:8px">🔍 Vetting Criteria — AI checks all of these:</div>
+          <div style="font-size:0.82rem;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div>1. <strong>Data Training</strong> — Vendor doesn't train AI/ML on our data</div>
+            <div>2. <strong>Data Ownership</strong> — Our data always belongs to us</div>
+            <div>3. <strong>Data Retention</strong> — Minimized & limited to stated purpose</div>
+            <div>4. <strong>Legal Risk</strong> — Classified as low risk by legal definition</div>
+          </div>
+        </div>
+
+        <!-- Vet a new vendor -->
+        <div style="margin-top:4px">
+          <label>Vet a New Vendor</label>
+          <div class="contract-form-row" style="margin-top:10px">
+            <div style="flex:2">
+              <label style="font-size:0.8rem;color:var(--text3)">Vendor / Company Name</label>
+              <input type="text" id="vendor-name" placeholder="e.g. Salesforce, Slack, Zoom" style="margin-top:4px">
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:0.8rem;color:var(--text3)">DPA / Terms / Privacy Doc (optional — AI will also browse the web)</label>
+            <input type="file" id="vendor-file" accept=".pdf,.docx,.doc,.txt" style="margin-top:4px">
+          </div>
+          <button class="btn-primary" onclick="vetNewVendor()" id="vendor-vet-btn">🔍 Run Vetting Agent</button>
+        </div>
+
+        <!-- KPI Stats -->
+        <div class="kpi-stats" style="margin-top:24px">
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-total">0</div>
+            <div class="kpi-label">Total Vetted</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-low" style="color:#22c55e">0</div>
+            <div class="kpi-label">✅ Low Risk</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-medium" style="color:#eab308">0</div>
+            <div class="kpi-label">⚠️ Medium Risk</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-high" style="color:#ef4444">0</div>
+            <div class="kpi-label">❌ High Risk</div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <table class="contract-table" style="margin-top:16px">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Date Vetted</th>
+              <th>Status</th>
+              <th>Trust Center</th>
+              <th>Report</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="vendor-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No vendors vetted yet. Run the agent above.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Vetting Report Panel -->
+      <div class="card" id="vendor-report-card" style="display:none">
+        <div class="card-title">🤖 AI Vetting Report — <span id="vendor-report-name"></span></div>
+        <div id="vendor-agent-steps" style="margin-bottom:12px"></div>
+        <div id="vendor-docs-links" style="margin-bottom:12px"></div>
+        <div class="insights-box" id="vendor-report-body">Running vetting agent...</div>
+      </div>
+    </div><!-- /tab-vendor -->
+
   </div><!-- /wrap -->
 
 <script>
@@ -1510,7 +1593,7 @@
   let smartCFile   = null;
 
   function switchTab(tab) {
-    const names = ["browser", "excel", "smart", "kb", "grc", "contract"];
+    const names = ["browser", "excel", "smart", "kb", "grc", "contract", "vendor"];
     document.querySelectorAll(".tab").forEach((t, i) => {
       t.classList.toggle("active", names[i] === tab);
     });
@@ -1518,6 +1601,7 @@
       document.getElementById("tab-" + n).classList.toggle("active", n === tab);
     });
     if (tab === "contract") loadContracts();
+    if (tab === "vendor") loadVendors();
     if (tab === "kb") loadKBFiles();
   }
 
@@ -2123,6 +2207,166 @@
     });
     const data = await res.json();
     body.textContent = data.insights || data.error || "No insights returned.";
+  }
+
+  // ── Vendor Vetting ────────────────────────────────────────────────────────
+  async function loadVendors() {
+    const res = await fetch("/list-vendors");
+    const data = await res.json();
+    renderVendors(data.vendors || []);
+  }
+
+  function renderVendors(vendors) {
+    const tbody = document.getElementById("vendor-tbody");
+    if (vendors.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No vendors vetted yet. Run the agent above.</td></tr>`;
+      updateVendorKPIs([]);
+      return;
+    }
+    const statusBadge = {
+      "low_risk":    `<span style="color:#22c55e;font-weight:600">✅ Low Risk</span>`,
+      "medium_risk": `<span style="color:#eab308;font-weight:600">⚠️ Medium Risk</span>`,
+      "high_risk":   `<span style="color:#ef4444;font-weight:600">❌ High Risk</span>`,
+    };
+    tbody.innerHTML = vendors.slice().reverse().map(v => `
+      <tr>
+        <td><strong>${v.name}</strong></td>
+        <td>${v.date_vetted}</td>
+        <td>${statusBadge[v.status] || '—'}</td>
+        <td>${v.trust_center
+          ? `<a href="${v.trust_center}" target="_blank" style="color:var(--accent);font-size:0.82rem">🔗 Trust Center</a>`
+          : `<span style="color:var(--text3);font-size:0.8rem">Not found</span>`}</td>
+        <td><button class="btn-insight" onclick="showVendorReport('${v.id}')">📄 View</button></td>
+        <td><button class="btn-delete-sm" onclick="deleteVendor('${v.id}')">✕</button></td>
+      </tr>`).join("");
+    updateVendorKPIs(vendors);
+  }
+
+  function updateVendorKPIs(vendors) {
+    document.getElementById("v-kpi-total").textContent  = vendors.length;
+    document.getElementById("v-kpi-low").textContent    = vendors.filter(v => v.status === "low_risk").length;
+    document.getElementById("v-kpi-medium").textContent = vendors.filter(v => v.status === "medium_risk").length;
+    document.getElementById("v-kpi-high").textContent   = vendors.filter(v => v.status === "high_risk").length;
+  }
+
+  async function vetNewVendor() {
+    const name = document.getElementById("vendor-name").value.trim();
+    const fileInput = document.getElementById("vendor-file");
+    if (!name && !fileInput.files[0]) {
+      alert("Please enter a vendor name or upload a document.");
+      return;
+    }
+
+    const btn = document.getElementById("vendor-vet-btn");
+    btn.disabled = true;
+    btn.textContent = "⏳ Agent running…";
+
+    const card = document.getElementById("vendor-report-card");
+    const body = document.getElementById("vendor-report-body");
+    const steps = document.getElementById("vendor-agent-steps");
+    const docs  = document.getElementById("vendor-docs-links");
+    document.getElementById("vendor-report-name").textContent = name || "Uploaded Document";
+    card.style.display = "block";
+    body.textContent = "🌐 Browsing vendor's trust center, privacy policy, and DPA…";
+    steps.innerHTML = "";
+    docs.innerHTML  = "";
+    card.scrollIntoView({ behavior: "smooth" });
+
+    try {
+      const fd = new FormData();
+      if (name) fd.append("company", name);
+      if (fileInput.files[0]) fd.append("file", fileInput.files[0]);
+
+      const res  = await fetch("/vet-vendor", { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (data.error) {
+        body.textContent = "❌ Error: " + data.error;
+        return;
+      }
+
+      // Show sources checked (agent steps feel)
+      if (data.sources && data.sources.length > 0) {
+        steps.innerHTML = `<div style="font-size:0.8rem;color:var(--text3);margin-bottom:10px">
+          <strong>Pages browsed:</strong><br>${data.sources.map(u =>
+            `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:var(--bg2);border-radius:4px">🌐 ${u}</span>`
+          ).join("")}</div>`;
+      }
+
+      // Show trust center + document links
+      let linksHtml = "";
+      if (data.trust_center) {
+        linksHtml += `<a href="${data.trust_center}" target="_blank" class="btn-insight" style="margin-right:8px">🔐 Trust Center</a>`;
+      }
+      if (data.documents && data.documents.length > 0) {
+        data.documents.forEach(d => {
+          linksHtml += `<a href="${d.url}" target="_blank" class="btn-insight" style="margin-right:6px;margin-bottom:6px">📄 ${d.name}</a>`;
+        });
+      }
+      if (linksHtml) {
+        docs.innerHTML = `<div style="margin-bottom:10px">${linksHtml}</div>`;
+      }
+
+      body.textContent = data.report || "No report generated.";
+
+      // Refresh table
+      document.getElementById("vendor-name").value = "";
+      fileInput.value = "";
+      loadVendors();
+
+    } catch(e) {
+      body.textContent = "❌ Request failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🔍 Run Vetting Agent";
+    }
+  }
+
+  async function deleteVendor(id) {
+    if (!confirm("Remove this vendor from the vetting history?")) return;
+    await fetch("/delete-vendor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    loadVendors();
+  }
+
+  // Show saved report for a vendor
+  let _vendorCache = [];
+  async function showVendorReport(id) {
+    if (!_vendorCache.length) {
+      const res = await fetch("/list-vendors");
+      const data = await res.json();
+      _vendorCache = data.vendors || [];
+    }
+    const v = _vendorCache.find(x => x.id === id);
+    if (!v) return;
+
+    const card  = document.getElementById("vendor-report-card");
+    const body  = document.getElementById("vendor-report-body");
+    const steps = document.getElementById("vendor-agent-steps");
+    const docs  = document.getElementById("vendor-docs-links");
+    document.getElementById("vendor-report-name").textContent = v.name;
+    card.style.display = "block";
+
+    // Sources
+    steps.innerHTML = v.sources && v.sources.length
+      ? `<div style="font-size:0.8rem;color:var(--text3);margin-bottom:10px">
+          <strong>Pages browsed:</strong><br>${v.sources.map(u =>
+            `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:var(--bg2);border-radius:4px">🌐 ${u}</span>`
+          ).join("")}</div>` : "";
+
+    // Docs
+    let linksHtml = "";
+    if (v.trust_center) linksHtml += `<a href="${v.trust_center}" target="_blank" class="btn-insight" style="margin-right:8px">🔐 Trust Center</a>`;
+    if (v.documents) v.documents.forEach(d => {
+      linksHtml += `<a href="${d.url}" target="_blank" class="btn-insight" style="margin-right:6px;margin-bottom:6px">📄 ${d.name}</a>`;
+    });
+    docs.innerHTML = linksHtml ? `<div style="margin-bottom:10px">${linksHtml}</div>` : "";
+
+    body.textContent = v.report || "No report saved.";
+    card.scrollIntoView({ behavior: "smooth" });
   }
 </script>
 </body>

@@ -711,12 +711,41 @@ def _vet_vendor_impl():
     except Exception:
         links_data = {"trust_center": None, "documents": []}
 
+    # Determine overall risk status from the report
+    overall_status = "medium_risk"
+    for line in report.splitlines():
+        ll = line.lower()
+        if "overall" in ll:
+            if "low" in ll:
+                overall_status = "low_risk"
+            elif "high" in ll:
+                overall_status = "high_risk"
+            break
+
+    # Save vetting record
+    try:
+        vendors = load_vendors()
+        vendors.append({
+            "id": str(uuid.uuid4()),
+            "name": company_name,
+            "date_vetted": date.today().isoformat(),
+            "status": overall_status,
+            "trust_center": links_data.get("trust_center"),
+            "documents": links_data.get("documents", []),
+            "sources": list(pages.keys()),
+            "report": report,
+        })
+        save_vendors(vendors)
+    except Exception:
+        pass  # Don't fail the vetting if save fails
+
     return jsonify({
         "company": company_name,
         "report": report,
         "sources": list(pages.keys()),
         "trust_center": links_data.get("trust_center"),
         "documents": links_data.get("documents", []),
+        "status": overall_status,
     })
 
 
@@ -1578,6 +1607,20 @@ def save_contracts(contracts):
         json.dump(contracts, f, indent=2)
 
 
+# ── Vendor Vetting persistence ─────────────────────────────────────────────────
+VENDORS_FILE = os.path.join(_DATA_DIR, "vendors.json")
+
+def load_vendors():
+    if not os.path.exists(VENDORS_FILE):
+        return []
+    with open(VENDORS_FILE, "r") as f:
+        return json.load(f)
+
+def save_vendors(vendors):
+    with open(VENDORS_FILE, "w") as f:
+        json.dump(vendors, f, indent=2)
+
+
 @app.route("/add-contract", methods=["POST"])
 @login_required
 def add_contract():
@@ -1685,6 +1728,22 @@ Contract content:
         return jsonify({"insights": msg.content[0].text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── Vendor Vetting list/delete ──────────────────────────────────────────────────
+@app.route("/list-vendors", methods=["GET"])
+@login_required
+def list_vendors():
+    return jsonify({"vendors": load_vendors()})
+
+
+@app.route("/delete-vendor", methods=["POST"])
+@login_required
+def delete_vendor():
+    vendor_id = request.json.get("id")
+    vendors = [v for v in load_vendors() if v["id"] != vendor_id]
+    save_vendors(vendors)
+    return jsonify({"ok": True})
 
 
 @app.route("/login", methods=["GET", "POST"])
