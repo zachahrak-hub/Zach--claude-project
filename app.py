@@ -1966,9 +1966,10 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
-        app_user = os.getenv("APP_USERNAME", "admin").strip()
-        app_pass = os.getenv("APP_PASSWORD", "").strip()
-        app_hash = os.getenv("APP_PASSWORD_HASH", "").strip()
+        # Strip whitespace AND accidental surrounding quotes from Railway env vars
+        app_user = os.getenv("APP_USERNAME", "admin").strip().strip("\"'")
+        app_pass = os.getenv("APP_PASSWORD", "").strip().strip("\"'")
+        app_hash = os.getenv("APP_PASSWORD_HASH", "").strip().strip("\"'")
 
         user_ok = username.lower() == app_user.lower()
         if app_hash and app_hash.startswith(("pbkdf2:", "scrypt:", "argon2:")):
