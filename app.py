@@ -637,8 +637,9 @@ def _vet_vendor_impl():
         )
         company_name = next((b.text.strip() for b in extract_resp.content if hasattr(b, "text")), "")
     else:
+        # Support both JSON and FormData requests
         data = request.get_json(silent=True) or {}
-        company_name = data.get("company", "").strip()
+        company_name = (data.get("company") or request.form.get("company", "")).strip()
 
     if not company_name:
         return jsonify({"error": "Company name required"}), 400
