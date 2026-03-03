@@ -1976,6 +1976,11 @@ def login():
         else:
             pass_ok = (password == app_pass)
 
+        # DEBUG — remove after login is confirmed working
+        import sys
+        print(f"[LOGIN-DEBUG] username_in={repr(username)} app_user={repr(app_user)} user_ok={user_ok}", file=sys.stderr, flush=True)
+        print(f"[LOGIN-DEBUG] password_len={len(password)} app_pass_len={len(app_pass)} pass_ok={pass_ok} has_hash={bool(app_hash)}", file=sys.stderr, flush=True)
+
         if user_ok and pass_ok:
             session.clear()
             session["logged_in"] = True
