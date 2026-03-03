@@ -26,13 +26,11 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # ── Security config ─────────────────────────────────────────────────────────────
-_secret = os.getenv("SECRET_KEY", "")
+_secret = os.getenv("SECRET_KEY", "").strip().strip("\"'")
 if not _secret or _secret == "dev-secret-change-me":
     import sys
-    if os.getenv("FLASK_ENV") == "production" or os.getenv("RAILWAY_ENVIRONMENT"):
-        sys.stderr.write("FATAL: SECRET_KEY env var is not set or is default. Refusing to start.\n")
-        sys.exit(1)
-    _secret = secrets.token_hex(32)   # safe random key for local dev only
+    sys.stderr.write("WARNING: SECRET_KEY not set — using a generated key. Sessions will reset on restart.\n")
+    _secret = secrets.token_hex(32)   # fallback: random key (sessions reset on redeploy)
 
 app.config.update(
     SECRET_KEY=_secret,
