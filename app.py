@@ -46,9 +46,11 @@ limiter = Limiter(get_remote_address, app=app, default_limits=[])
 api_key = os.getenv("ANTHROPIC_API_KEY")
 client = anthropic.Anthropic(api_key=api_key)
 
-# ── Audit logging ────────────────────────────────────────────────────────────────
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+# ── Data directory (Railway volume if available, else local) ─────────────────────
+_DATA_DIR = "/data" if os.path.isdir("/data") else os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(_DATA_DIR, exist_ok=True)
+
+# ── Audit logging ────────────────────────────────────────────────────────────────
 
 _audit_logger = logging.getLogger("audit")
 _audit_handler = logging.FileHandler(os.path.join(_DATA_DIR, "audit.log"))
@@ -1767,7 +1769,6 @@ Write as if you have just queried the live systems and are reporting findings in
 import uuid
 from datetime import date
 
-_DATA_DIR = "/data" if os.path.isdir("/data") else os.path.dirname(__file__)
 CONTRACTS_FILE = os.path.join(_DATA_DIR, "contracts.json")
 
 def load_contracts():
