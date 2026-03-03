@@ -715,9 +715,6 @@
       <div class="tab" onclick="switchTab('contract')">
         <span class="tab-icon">📑</span> Contract KPI
       </div>
-      <div class="tab" onclick="switchTab('vendor')">
-        <span class="tab-icon">🔍</span> Vendor Vetting
-      </div>
     </div>
 
     <!-- ═══ TAB 1: Browser Agent ═══ -->
@@ -748,78 +745,93 @@
     <!-- ═══ TAB 2: Vendor Vetting ═══ -->
     <div class="tab-content" id="tab-excel">
       <div class="card">
-        <div class="card-title">Vendor Vetting</div>
-        <div class="card-sub">Enter a company name — we'll research their security &amp; compliance automatically.</div>
+        <div class="card-title">🔍 Vendor Vetting</div>
+        <div class="card-sub">AI-powered vendor security review — automatically browses the vendor's trust center, privacy policy, and DPA, then evaluates all 4 Coralogix criteria.</div>
 
-        <label>Company name</label>
-        <input type="text" id="vendorName" placeholder="e.g. Okta, Datadog, Snowflake…" />
-
-        <div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;color:var(--text3);font-size:.78rem;">
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-          <span>or upload a vendor document</span>
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-        </div>
-
-        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
-             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-          <span class="drop-icon">📄</span>
-          <div>Drag order form, contract, or any vendor document here</div>
-          <div class="file-name" id="fileName"></div>
-          <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.docx,.txt" onchange="handleFileSelect(event)" />
-        </div>
-
-        <!-- Vetting Criteria -->
-        <div style="margin:20px 0 0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:.8rem;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-            <span>🎯</span> Vetting Criteria — AI will check all of these
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
-              <span style="color:#6366f1;font-weight:700;flex-shrink:0">1.</span>
-              <span><strong>Data Training</strong> — Does the vendor train AI/ML models on our data?</span>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
-              <span style="color:#6366f1;font-weight:700;flex-shrink:0">2.</span>
-              <span><strong>Data Ownership</strong> — Is it verified that our data always belongs to us?</span>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
-              <span style="color:#6366f1;font-weight:700;flex-shrink:0">3.</span>
-              <span><strong>Data Retention</strong> — Is retention highly minimized and limited to the stated purpose only?</span>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--text);">
-              <span style="color:#6366f1;font-weight:700;flex-shrink:0">4.</span>
-              <span><strong>Legal Risk</strong> — Is the vendor classified as low risk by legal definition?</span>
-            </div>
+        <!-- Vetting Criteria Reference -->
+        <div style="margin:18px 0 20px;padding:14px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent)">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:8px">🎯 Vetting Criteria — AI checks all of these:</div>
+          <div style="font-size:0.82rem;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div>1. <strong>Data Training</strong> — Vendor doesn't train AI/ML on our data</div>
+            <div>2. <strong>Data Ownership</strong> — Our data always belongs to us</div>
+            <div>3. <strong>Data Retention</strong> — Minimized & limited to stated purpose</div>
+            <div>4. <strong>Legal Risk</strong> — Classified as low risk by legal definition</div>
           </div>
         </div>
 
-        <div class="btn-row" style="margin-top:20px;">
-          <button class="btn-primary btn-full" id="excelBtn" onclick="vetVendor()">
-            🔍 Vet Vendor
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
+        <!-- Vet a new vendor -->
+        <div style="margin-top:4px">
+          <label>Vet a New Vendor</label>
+          <div class="contract-form-row" style="margin-top:10px">
+            <div style="flex:2">
+              <label style="font-size:0.8rem;color:var(--text3)">Vendor / Company Name</label>
+              <input type="text" id="vendor-name" placeholder="e.g. Salesforce, Slack, Zoom" style="margin-top:4px">
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:0.8rem;color:var(--text3)">DPA / Terms / Privacy Doc (optional — AI will also browse the web)</label>
+            <input type="file" id="vendor-file" accept=".pdf,.docx,.doc,.txt" style="margin-top:4px">
+          </div>
+          <button class="btn-primary" onclick="vetNewVendor()" id="vendor-vet-btn">🔍 Run Vetting Agent</button>
         </div>
-        <div class="status" id="excelStatus"></div>
-        <div class="progress-wrap" id="progressWrap">
-          <div class="progress-bar" id="progressBar"></div>
+
+        <!-- KPI Stats -->
+        <div class="kpi-stats" style="margin-top:24px">
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-total">0</div>
+            <div class="kpi-label">Total Vetted</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-low" style="color:#22c55e">0</div>
+            <div class="kpi-label">✅ Low Risk</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-medium" style="color:#eab308">0</div>
+            <div class="kpi-label">⚠️ Medium Risk</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-num" id="v-kpi-high" style="color:#ef4444">0</div>
+            <div class="kpi-label">❌ High Risk</div>
+          </div>
         </div>
+
+        <!-- Table -->
+        <table class="contract-table" style="margin-top:16px">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Date Vetted</th>
+              <th>Status</th>
+              <th>Trust Center</th>
+              <th>Report</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="vendor-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No vendors vetted yet. Run the agent above.</td></tr>
+          </tbody>
+        </table>
       </div>
 
-      <!-- Trust Center + Documents card -->
-      <div class="card" id="vetTrustCard" style="display:none">
-        <div class="section-label" style="margin-bottom:12px;">🔐 Trust Center &amp; Documents</div>
-        <div id="vetTrustCenter" style="margin-bottom:12px;"></div>
-        <div id="vetDocsList"></div>
-      </div>
+      <!-- Vetting Report Panel -->
+      <div class="card" id="vendor-report-card" style="display:none">
+        <div class="card-title">🤖 AI Vetting Report — <span id="vendor-report-name"></span></div>
+        <div id="vendor-agent-steps" style="margin-bottom:12px"></div>
+        <div id="vendor-docs-links" style="margin-bottom:12px"></div>
+        <div class="insights-box" id="vendor-report-body">Running vetting agent...</div>
 
-      <div class="card" id="vetReportCard" style="display:none">
-        <div class="section-label" style="margin-bottom:12px;" id="vetCompanyTitle"></div>
-        <div class="result-block result-success" id="vetReportText" style="white-space:pre-wrap;"></div>
-      </div>
-
-      <div class="card" id="vetSourcesCard" style="display:none">
-        <div class="section-label" style="margin-bottom:10px;">📎 Sources Checked</div>
-        <div id="vetSourcesList"></div>
+        <!-- Follow-up chat -->
+        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:10px">💬 Follow-up Questions</div>
+          <div id="vendor-chat-history" style="margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="vendor-chat-input"
+              placeholder="e.g. Are they GDPR compliant? Do they have SOC 2?"
+              style="flex:1"
+              onkeydown="if(event.key==='Enter') sendVendorChat()">
+            <button class="btn-primary" onclick="sendVendorChat()" id="vendor-chat-btn" style="white-space:nowrap">Send</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1499,99 +1511,6 @@
       </div>
     </div><!-- /tab-contract -->
 
-    <!-- ═══ TAB 7: Vendor Vetting ═══ -->
-    <div class="tab-content" id="tab-vendor">
-      <div class="card">
-        <div class="card-title">🔍 Vendor Vetting</div>
-        <div class="card-sub">AI-powered vendor security review — automatically browses the vendor's trust center, privacy policy, and DPA, then evaluates all 4 Coralogix criteria.</div>
-
-        <!-- Vetting Criteria Reference -->
-        <div style="margin:18px 0 20px;padding:14px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent)">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:8px">🔍 Vetting Criteria — AI checks all of these:</div>
-          <div style="font-size:0.82rem;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <div>1. <strong>Data Training</strong> — Vendor doesn't train AI/ML on our data</div>
-            <div>2. <strong>Data Ownership</strong> — Our data always belongs to us</div>
-            <div>3. <strong>Data Retention</strong> — Minimized & limited to stated purpose</div>
-            <div>4. <strong>Legal Risk</strong> — Classified as low risk by legal definition</div>
-          </div>
-        </div>
-
-        <!-- Vet a new vendor -->
-        <div style="margin-top:4px">
-          <label>Vet a New Vendor</label>
-          <div class="contract-form-row" style="margin-top:10px">
-            <div style="flex:2">
-              <label style="font-size:0.8rem;color:var(--text3)">Vendor / Company Name</label>
-              <input type="text" id="vendor-name" placeholder="e.g. Salesforce, Slack, Zoom" style="margin-top:4px">
-            </div>
-          </div>
-          <div style="margin-bottom:14px">
-            <label style="font-size:0.8rem;color:var(--text3)">DPA / Terms / Privacy Doc (optional — AI will also browse the web)</label>
-            <input type="file" id="vendor-file" accept=".pdf,.docx,.doc,.txt" style="margin-top:4px">
-          </div>
-          <button class="btn-primary" onclick="vetNewVendor()" id="vendor-vet-btn">🔍 Run Vetting Agent</button>
-        </div>
-
-        <!-- KPI Stats -->
-        <div class="kpi-stats" style="margin-top:24px">
-          <div class="kpi-card">
-            <div class="kpi-num" id="v-kpi-total">0</div>
-            <div class="kpi-label">Total Vetted</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-num" id="v-kpi-low" style="color:#22c55e">0</div>
-            <div class="kpi-label">✅ Low Risk</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-num" id="v-kpi-medium" style="color:#eab308">0</div>
-            <div class="kpi-label">⚠️ Medium Risk</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-num" id="v-kpi-high" style="color:#ef4444">0</div>
-            <div class="kpi-label">❌ High Risk</div>
-          </div>
-        </div>
-
-        <!-- Table -->
-        <table class="contract-table" style="margin-top:16px">
-          <thead>
-            <tr>
-              <th>Vendor</th>
-              <th>Date Vetted</th>
-              <th>Status</th>
-              <th>Trust Center</th>
-              <th>Report</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="vendor-tbody">
-            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No vendors vetted yet. Run the agent above.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Vetting Report Panel -->
-      <div class="card" id="vendor-report-card" style="display:none">
-        <div class="card-title">🤖 AI Vetting Report — <span id="vendor-report-name"></span></div>
-        <div id="vendor-agent-steps" style="margin-bottom:12px"></div>
-        <div id="vendor-docs-links" style="margin-bottom:12px"></div>
-        <div class="insights-box" id="vendor-report-body">Running vetting agent...</div>
-
-        <!-- Follow-up chat -->
-        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--text1);margin-bottom:10px">💬 Follow-up Questions</div>
-          <div id="vendor-chat-history" style="margin-bottom:12px"></div>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="vendor-chat-input"
-              placeholder="e.g. Are they GDPR compliant? Do they have SOC 2?"
-              style="flex:1"
-              onkeydown="if(event.key==='Enter') sendVendorChat()">
-            <button class="btn-primary" onclick="sendVendorChat()" id="vendor-chat-btn" style="white-space:nowrap">Send</button>
-          </div>
-        </div>
-      </div>
-    </div><!-- /tab-vendor -->
-
   </div><!-- /wrap -->
 
 <script>
@@ -1606,7 +1525,7 @@
   let smartCFile   = null;
 
   function switchTab(tab) {
-    const names = ["browser", "excel", "smart", "kb", "grc", "contract", "vendor"];
+    const names = ["browser", "excel", "smart", "kb", "grc", "contract"];
     document.querySelectorAll(".tab").forEach((t, i) => {
       t.classList.toggle("active", names[i] === tab);
     });
@@ -1614,7 +1533,7 @@
       document.getElementById("tab-" + n).classList.toggle("active", n === tab);
     });
     if (tab === "contract") loadContracts();
-    if (tab === "vendor") loadVendors();
+    if (tab === "excel") loadVendors();
     if (tab === "kb") loadKBFiles();
   }
 
