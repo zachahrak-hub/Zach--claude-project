@@ -36,7 +36,7 @@ if not _secret or _secret == "dev-secret-change-me":
 
 app.config.update(
     SECRET_KEY=_secret,
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("FORCE_HTTPS")),
