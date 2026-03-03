@@ -134,36 +134,36 @@ def _security_headers(response):
     return response
 
 # ── Multi-user support ───────────────────────────────────────────────────────────
-def _get_users() -> dict:
-    """Return {username: password_hash} dict.
-    Configure via USERS_JSON env var:
-      USERS_JSON='{"zach":"<hash>","roman":"<hash>"}'
-    Generate hashes with: python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('yourpassword'))"
-    Falls back to APP_USERNAME / APP_PASSWORD_HASH / APP_PASSWORD for backward compat.
-    """
+def _verify_user(username: str, password: str) -> bool:
+    # 1. USERS_JSON takes priority
     raw = os.getenv("USERS_JSON", "")
     if raw:
         try:
-            return json.loads(raw)
+            users = json.loads(raw)
+            stored = users.get(username)
+            if stored:
+                if stored.startswith(("pbkdf2:", "scrypt:", "argon2:")):
+                    return check_password_hash(stored, password)
+                return stored == password
         except Exception:
             pass
-    # Legacy single-user fallback
-    username = os.getenv("APP_USERNAME", "admin")
-    hashed   = os.getenv("APP_PASSWORD_HASH", "")
-    plain    = os.getenv("APP_PASSWORD", "changeme")
-    if not hashed:
-        hashed = generate_password_hash(plain)
-    return {username: hashed}
 
-def _verify_user(username: str, password: str) -> bool:
-    users = _get_users()
-    stored = users.get(username)
-    if not stored:
+    # 2. Username must match APP_USERNAME (case-insensitive)
+    app_user = os.getenv("APP_USERNAME", "admin").strip()
+    if username.strip().lower() != app_user.lower():
         return False
-    # Support hashed (pbkdf2/scrypt) and plain legacy passwords
-    if stored.startswith(("pbkdf2:", "scrypt:", "argon2:")):
-        return check_password_hash(stored, password)
-    return stored == password  # legacy plain-text (should be migrated)
+
+    # 3. Try APP_PASSWORD_HASH
+    pw_hash = os.getenv("APP_PASSWORD_HASH", "").strip()
+    if pw_hash and pw_hash.startswith(("pbkdf2:", "scrypt:", "argon2:")):
+        return check_password_hash(pw_hash, password)
+
+    # 4. Fall back to plain APP_PASSWORD
+    plain = os.getenv("APP_PASSWORD", "").strip()
+    if plain:
+        return password == plain
+
+    return False
 
 # ── Input validation ─────────────────────────────────────────────────────────────
 def _require_str(data: dict, key: str, max_len: int = 4000, required: bool = True):
