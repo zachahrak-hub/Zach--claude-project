@@ -932,534 +932,1845 @@
 
     <!-- ═══ TAB 5: GRC-SOC2 ═══ -->
     <div class="tab-content" id="tab-grc">
-
       <style>
-        .grc-grid { display: flex; flex-direction: column; gap: 14px; }
-        .grc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .grc-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-        .grc-left { display: flex; align-items: flex-start; gap: 12px; }
-        .grc-id { font-size: .7rem; font-weight: 700; background: rgba(14,165,233,.1); border: 1px solid rgba(14,165,233,.25); color: var(--accent2); border-radius: 6px; padding: 3px 9px; white-space: nowrap; margin-top: 2px; }
-        .grc-title { font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
-        .grc-category { font-size: .75rem; color: var(--text3); }
-        .grc-badge { font-size: .68rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; margin-top: 2px; }
-        .badge-full { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.25); color: #059669; }
-        .badge-semi { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); color: #d97706; }
-        .badge-managed { background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25); color: #6366f1; }
-        .grc-desc { font-size: .82rem; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
-        .grc-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-        .grc-tool-chip { font-size: .72rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--text3); }
-        .grc-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-        .grc-status { font-size: .78rem; color: var(--text3); display: flex; align-items: center; gap: 6px; }
-        .grc-result { margin-top: 14px; background: var(--bg2); border: 1.5px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: .83rem; line-height: 1.75; color: var(--text2); white-space: pre-wrap; display: none; }
-        .grc-result.visible { display: block; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); display: inline-block; }
-        .status-dot.running { background: #f59e0b; animation: pulse 1s infinite; }
-        .status-dot.done { background: #10b981; }
-        .status-dot.error { background: #ef4444; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        /* ── SOC2 Dashboard Layout ── */
+        .soc2-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+        .soc2-header-left h2 { font-size:1.45rem; font-weight:700; margin:0; }
+        .soc2-header-left p { margin:2px 0 0; color:var(--text-muted,#6b7280); font-size:0.88rem; }
+        .btn-sync-jira { background:#2563eb; color:#fff; border:none; border-radius:7px; padding:8px 16px; font-size:0.85rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.15s; }
+        .btn-sync-jira:hover { background:#1d4ed8; }
+
+        /* ── KPI Row ── */
+        .soc2-kpis { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+        .soc2-kpi { flex:1; min-width:110px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; text-align:center; }
+        .soc2-kpi .kpi-num { font-size:2rem; font-weight:700; line-height:1.1; }
+        .soc2-kpi .kpi-label { font-size:0.78rem; color:var(--text-muted,#6b7280); margin-top:3px; }
+        .kpi-num.total { color:var(--text,#111); }
+        .kpi-num.passing { color:#16a34a; }
+        .kpi-num.failing { color:#dc2626; }
+        .kpi-num.inprog { color:#d97706; }
+        .kpi-num.notstarted { color:#9ca3af; }
+
+        /* ── Progress Bar ── */
+        .soc2-progress-wrap { margin-bottom:20px; }
+        .soc2-progress-bar { display:flex; height:10px; border-radius:99px; overflow:hidden; background:#e5e7eb; }
+        .pb-seg { height:100%; transition:width 0.4s; }
+        .pb-seg.passing { background:#16a34a; }
+        .pb-seg.inprog { background:#d97706; }
+        .pb-seg.failing { background:#dc2626; }
+        .pb-seg.notstarted { background:#d1d5db; }
+        .soc2-progress-legend { display:flex; gap:14px; margin-top:6px; font-size:0.78rem; color:var(--text-muted,#6b7280); flex-wrap:wrap; }
+        .prog-leg { display:flex; align-items:center; gap:4px; }
+        .prog-leg-dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+        /* ── Body: sidebar + panel ── */
+        .soc2-body { display:flex; gap:16px; align-items:flex-start; }
+        .soc2-sidebar { width:220px; flex-shrink:0; background:#1e2433; border-radius:12px; padding:10px 0; position:sticky; top:16px; }
+        .soc2-sidebar-title { font-size:0.72rem; font-weight:700; color:#9ca3af; letter-spacing:0.08em; padding:6px 16px 8px; text-transform:uppercase; }
+        .sidebar-cc { display:flex; align-items:center; gap:0; padding:8px 14px; cursor:pointer; border-left:3px solid transparent; transition:background 0.12s, border-color 0.12s; }
+        .sidebar-cc:hover { background:rgba(255,255,255,0.06); }
+        .sidebar-cc.active { border-left-color:#3b82f6; background:rgba(59,130,246,0.12); }
+        .sidebar-cc-label { font-size:0.78rem; font-weight:700; color:#93c5fd; min-width:34px; flex-shrink:0; }
+        .sidebar-cc.active .sidebar-cc-label { color:#60a5fa; }
+        .sidebar-cc-name { font-size:0.78rem; color:#d1d5db; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-left:4px; }
+        .sidebar-cc.active .sidebar-cc-name { color:#fff; }
+        .sidebar-count { font-size:0.72rem; background:rgba(255,255,255,0.1); color:#9ca3af; border-radius:99px; padding:1px 7px; margin-left:6px; flex-shrink:0; }
+        .sidebar-cc.active .sidebar-count { background:rgba(59,130,246,0.3); color:#93c5fd; }
+
+        /* ── Panel ── */
+        .soc2-panel { flex:1; min-width:0; }
+        .soc2-search { width:100%; box-sizing:border-box; padding:9px 14px; border:1px solid var(--border); border-radius:8px; font-size:0.88rem; background:var(--surface); color:var(--text); margin-bottom:12px; outline:none; }
+        .soc2-search:focus { border-color:#3b82f6; }
+        .soc2-list-header { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
+        #cat-title { font-size:1.05rem; font-weight:700; margin:0; }
+        #cat-sub { font-size:0.82rem; color:var(--text-muted,#6b7280); }
+        #cat-count { font-size:0.82rem; color:#3b82f6; margin-left:auto; }
+        #soc2-list { display:flex; flex-direction:column; gap:10px; }
+
+        /* ── Control Card ── */
+        .soc2-control-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; transition:box-shadow 0.15s; }
+        .soc2-control-card:hover { box-shadow:0 2px 10px rgba(0,0,0,0.09); }
+        .ctrl-left { display:flex; align-items:flex-start; gap:10px; flex:1; min-width:0; }
+        .ctrl-status-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:5px; background:#d1d5db; }
+        .ctrl-status-dot.passing { background:#16a34a; }
+        .ctrl-status-dot.failing { background:#dc2626; }
+        .ctrl-status-dot.in_progress { background:#d97706; }
+        .ctrl-status-dot.not_started { background:#d1d5db; }
+        .ctrl-info { flex:1; min-width:0; }
+        .ctrl-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px; }
+        .ctrl-ccid { font-size:0.78rem; font-weight:700; color:#2563eb; background:#eff6ff; border-radius:5px; padding:2px 7px; }
+        .ctrl-crlg { font-size:0.75rem; color:#6b7280; background:#f3f4f6; border-radius:5px; padding:2px 7px; }
+        .ctrl-tool-chip { font-size:0.72rem; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:99px; padding:1px 8px; }
+        .ctrl-badge { font-size:0.72rem; border-radius:99px; padding:2px 8px; font-weight:600; }
+        .badge-auto { background:#fef9c3; color:#854d0e; }
+        .badge-semi { background:#e0f2fe; color:#0369a1; }
+        .badge-manual { background:#f1f5f9; color:#475569; }
+        .ctrl-title { font-size:0.93rem; font-weight:600; margin-bottom:3px; }
+        .ctrl-desc { font-size:0.81rem; color:var(--text-muted,#6b7280); line-height:1.45; margin-bottom:4px; }
+        .ctrl-agent-row { display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap; }
+        .btn-run-agent { background:#2563eb; color:#fff; border:none; border-radius:6px; padding:5px 12px; font-size:0.79rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s; }
+        .btn-run-agent:hover { background:#1d4ed8; }
+        .ctrl-right { display:flex; flex-direction:column; align-items:flex-end; gap:7px; flex-shrink:0; }
+        .status-sel { border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:0.8rem; background:var(--surface); color:var(--text); cursor:pointer; min-width:120px; outline:none; }
+        .status-sel:focus { border-color:#3b82f6; }
+        .btn-jira-ctrl { background:#2563eb; color:#fff; border:none; border-radius:6px; padding:5px 12px; font-size:0.79rem; font-weight:600; cursor:pointer; transition:background 0.15s; white-space:nowrap; }
+        .btn-jira-ctrl:hover { background:#1d4ed8; }
+
+        /* ── GRC result/status (keep existing) ── */
+        .grc-status { display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-muted,#6b7280); }
+        .grc-result { margin-top:8px; }
+
+        @media(max-width:700px) {
+          .soc2-body { flex-direction:column; }
+          .soc2-sidebar { width:100%; position:static; }
+          .soc2-kpis { gap:8px; }
+          .soc2-kpi { min-width:80px; padding:10px; }
+        }
       </style>
 
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-title">🛡️ SOC 2 Evidence Dashboard</div>
-        <div class="card-sub">Run each control agent to automatically collect evidence. Results are structured for auditors.</div>
+      <!-- Header -->
+      <div class="soc2-header">
+        <div class="soc2-header-left">
+          <h2>&#128274; SOC 2 Compliance Dashboard</h2>
+          <p>Track and manage your SOC 2 controls</p>
+        </div>
+        <button class="btn-sync-jira" onclick="syncJira()">&#128279; Sync Jira</button>
       </div>
 
-      <div class="grc-grid">
-
-        <!-- ── CONTROL ENVIRONMENT ── -->
-        <div class="grc-card" id="grc-card-1">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_1</div><div><div class="grc-title">Board Independence</div><div class="grc-category">CRLG#1 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Board members and the management members list confirming independent board formation.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+      <!-- KPI Cards -->
+      <div class="soc2-kpis">
+        <div class="soc2-kpi">
+          <div class="kpi-num total" id="kpi-total">57</div>
+          <div class="kpi-label">Total Controls</div>
         </div>
-
-        <div class="grc-card" id="grc-card-2">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_2</div><div><div class="grc-title">Board Policy Direction</div><div class="grc-category">CRLG#2 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Sample of Board meeting minutes regarding setting policies and ethical behavior.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="soc2-kpi">
+          <div class="kpi-num passing" id="kpi-passing">0</div>
+          <div class="kpi-label">&#9989; Passing</div>
         </div>
-
-        <div class="grc-card" id="grc-card-3">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_3</div><div><div class="grc-title">Organizational Structure</div><div class="grc-category">CRLG#3 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">An updated organization chart confirming structure is reviewed and updated at least annually.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="soc2-kpi">
+          <div class="kpi-num failing" id="kpi-failing">0</div>
+          <div class="kpi-label">&#10060; Failing</div>
         </div>
-
-        <div class="grc-card" id="grc-card-5">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_5</div><div><div class="grc-title">New Employee Onboarding</div><div class="grc-category">CRLG#5 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">For a selected sample of new employees during the audit period, provide the training tracking table.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="soc2-kpi">
+          <div class="kpi-num inprog" id="kpi-inprog">0</div>
+          <div class="kpi-label">&#9888; In Progress</div>
         </div>
+        <div class="soc2-kpi">
+          <div class="kpi-num notstarted" id="kpi-notstarted">57</div>
+          <div class="kpi-label">&#9711; Not Started</div>
+        </div>
+      </div>
 
-        <div class="grc-card" id="grc-card-621">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_6_21</div><div><div class="grc-title">Policy Documents</div><div class="grc-category">CRLG#6 · Control Environment</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">All company policies and procedures (Employee Handbook, Information Security Policies, SDLC, Incident Response, Hardening). Screenshot of internal drive confirming policies are up to date and placed in the evidence folder.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Google Drive</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-621"><span class="status-dot" id="dot-621"></span><span id="status-text-621">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('621','_6_21','Policy Documents','Download the latest security and compliance policies from the relevant Google Drive folder and verify they are updated (Employee Handbook, Information Security Policies, SDLC, Incident Response, Hardening). Confirm the policies are placed in the correct evidence folder. Report what was found and any gaps.')">▶ Run Agent</button>
+      <!-- Progress Bar -->
+      <div class="soc2-progress-wrap">
+        <div class="soc2-progress-bar">
+          <div class="pb-seg passing" id="pb-passing" style="width:0%"></div>
+          <div class="pb-seg inprog" id="pb-inprog" style="width:0%"></div>
+          <div class="pb-seg failing" id="pb-failing" style="width:0%"></div>
+          <div class="pb-seg notstarted" id="pb-notstarted" style="width:100%"></div>
+        </div>
+        <div class="soc2-progress-legend">
+          <span class="prog-leg"><span class="prog-leg-dot" style="background:#16a34a"></span> Passing</span>
+          <span class="prog-leg"><span class="prog-leg-dot" style="background:#d97706"></span> In Progress</span>
+          <span class="prog-leg"><span class="prog-leg-dot" style="background:#dc2626"></span> Failing</span>
+          <span class="prog-leg"><span class="prog-leg-dot" style="background:#d1d5db"></span> Not Started</span>
+        </div>
+      </div>
+
+      <!-- Main: sidebar + panel -->
+      <div class="soc2-body">
+        <div class="soc2-sidebar">
+          <div class="soc2-sidebar-title">Categories</div>
+        <div class="sidebar-cc active" data-cat="all" onclick="filterGRC('all')">
+          <span class="sidebar-cc-label">ALL</span>
+          <span class="sidebar-cc-name">All Controls</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc1" onclick="filterGRC('cc1')">
+          <span class="sidebar-cc-label">CC1</span>
+          <span class="sidebar-cc-name">Control Environment</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc2" onclick="filterGRC('cc2')">
+          <span class="sidebar-cc-label">CC2</span>
+          <span class="sidebar-cc-name">Communication & Information</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc3" onclick="filterGRC('cc3')">
+          <span class="sidebar-cc-label">CC3</span>
+          <span class="sidebar-cc-name">Risk Assessment</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc4" onclick="filterGRC('cc4')">
+          <span class="sidebar-cc-label">CC4</span>
+          <span class="sidebar-cc-name">Monitoring Activities</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc5" onclick="filterGRC('cc5')">
+          <span class="sidebar-cc-label">CC5</span>
+          <span class="sidebar-cc-name">Control Activities</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc6" onclick="filterGRC('cc6')">
+          <span class="sidebar-cc-label">CC6</span>
+          <span class="sidebar-cc-name">Logical & Physical Access</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc7" onclick="filterGRC('cc7')">
+          <span class="sidebar-cc-label">CC7</span>
+          <span class="sidebar-cc-name">System Operations</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc8" onclick="filterGRC('cc8')">
+          <span class="sidebar-cc-label">CC8</span>
+          <span class="sidebar-cc-name">Change Management</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="cc9" onclick="filterGRC('cc9')">
+          <span class="sidebar-cc-label">CC9</span>
+          <span class="sidebar-cc-name">Risk Mitigation</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="c1" onclick="filterGRC('c1')">
+          <span class="sidebar-cc-label">C1</span>
+          <span class="sidebar-cc-name">Confidentiality</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        <div class="sidebar-cc" data-cat="a1" onclick="filterGRC('a1')">
+          <span class="sidebar-cc-label">A1</span>
+          <span class="sidebar-cc-name">Availability</span>
+          <span class="sidebar-count">0</span>
+        </div>
+        </div>
+        <div class="soc2-panel">
+          <input class="soc2-search" type="text" placeholder="&#128269; Search controls, IDs, tools..." oninput="searchGRC(this.value)" />
+          <div class="soc2-list-header">
+            <span id="cat-title">All Controls</span>
+            <span id="cat-sub">All SOC 2 Trust Service Criteria</span>
+            <span id="cat-count">57 controls</span>
           </div>
-          <div class="grc-result" id="result-621"></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-7">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_7</div><div><div class="grc-title">Job Requirements & Hiring</div><div class="grc-category">CRLG#7 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">For a sample of new employees during the audit period, provide documentation of the recruitment process (background checks, reference checks, interview minutes, etc.).</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-8">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_8</div><div><div class="grc-title">Management Team Meetings</div><div class="grc-category">CRLG#8 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Sample of management meeting calendar invitations (5 weeks) and meeting agenda covering security, confidentiality and availability issues.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-10">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_10</div><div><div class="grc-title">Active Employee List</div><div class="grc-category">CRLG#10 · Control Environment</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">A list of current active employees across all entities. BDO will provide a sample for annual performance review evidence.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-10"><span class="status-dot" id="dot-10"></span><span id="status-text-10">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('10','_10','Active Employee List','From HiBob, filter only active employees and export all entities. Provide a count per entity/site and confirm the population is complete for the audit period.')">▶ Run Agent</button>
+          <div id="soc2-list">
+      <div class="soc2-control-card" data-id="1" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.1</span>
+              <span class="ctrl-crlg">CRLG#1</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Board Independence</div>
+            <div class="ctrl-desc">Board members and the management members list confirming independent board formation.</div>
           </div>
-          <div class="grc-result" id="result-10"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-13">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_13</div><div><div class="grc-title">Security Awareness Training</div><div class="grc-category">CRLG#13 · Control Environment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Security awareness training course agenda and completion tracking table for all employees (at least annually).</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('1', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Board Independence','CC1.1')">+ Jira</button>
         </div>
-
-        <!-- ── COMMUNICATION AND INFORMATION ── -->
-        <div class="grc-card" id="grc-card-9">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_9</div><div><div class="grc-title">System Description</div><div class="grc-category">CRLG#9 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">System description made available to internal and external users. Security and compliance documents uploaded to Coralogix website.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-11">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_11</div><div><div class="grc-title">Confidentiality Changes</div><div class="grc-category">CRLG#11 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Confidentiality commitments change notification sent to all customers (if policy changed during audit period). Confirm whether a policy change occurred.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-12">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_12</div><div><div class="grc-title">Customer Responsibilities / SLA</div><div class="grc-category">CRLG#12 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">SLA document and evidence that the SLA is published on the company website.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-1538">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">15_38</div><div><div class="grc-title">Customer Population</div><div class="grc-category">CRLG#15 · Communication and Information</div></div></div><span class="grc-badge badge-semi">◑ Maybe</span></div>
-          <div class="grc-desc">A list of new customers during the audit period. BDO will select a sample and require signed agreements addressing security, availability, confidentiality, and data retention period.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Salesforce</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-1538"><span class="status-dot" id="dot-1538"></span><span id="status-text-1538">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('1538','15_38','Customer Population','Extract the new customer population for the audit period from Salesforce. Provide counts, dates of new accounts, and flag any data completeness issues.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="2" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.2</span>
+              <span class="ctrl-crlg">CRLG#2</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Board Policy Direction</div>
+            <div class="ctrl-desc">Sample of Board meeting minutes regarding setting policies and ethical behavior.</div>
           </div>
-          <div class="grc-result" id="result-1538"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-16">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_16</div><div><div class="grc-title">Incident Response Communication</div><div class="grc-category">CRLG#16 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence that incident response policies and procedures are communicated to relevant internal and external users on Coralogix website.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('2', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Board Policy Direction','CC1.2')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-17">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_17</div><div><div class="grc-title">Customer Updates / Status Page</div><div class="grc-category">CRLG#17 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence that new features and modifications are communicated to customers via Coralogix's status page and emails.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-18">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_18</div><div><div class="grc-title">How-To / FAQ</div><div class="grc-category">CRLG#18 · Communication and Information</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Screenshot of the company's FAQ and support manual (website) and screenshot showing the end user can ask questions from the Coralogix platform.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <!-- ── SYSTEM OPERATIONS ── -->
-        <div class="grc-card" id="grc-card-19">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_19</div><div><div class="grc-title">CS Incidents Report</div><div class="grc-category">CRLG#19 · System Operations</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Log tracker report (from FAST) for Customer Support service tickets during the audit period. BDO will sample tickets to verify SLA compliance and resolution.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Intercom</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-19"><span class="status-dot" id="dot-19"></span><span id="status-text-19">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('19','_19','CS Incidents Report','Generate a customer support incident report from Intercom filtered to the audit period. List total tickets, resolved vs open, average resolution time, SLA compliance, and any breaches. Note any access limitations.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="3" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.3</span>
+              <span class="ctrl-crlg">CRLG#3</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Organizational Structure</div>
+            <div class="ctrl-desc">An updated organization chart confirming structure is reviewed and updated at least annually.</div>
           </div>
-          <div class="grc-result" id="result-19"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-27">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_27</div><div><div class="grc-title">Incident Population</div><div class="grc-category">CRLG#27 · System Operations</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of security incidents for the audit period from PagerDuty. BDO will sample incidents to verify resolution. Also check the relevant Slack group.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">PagerDuty</span><span class="grc-tool-chip">Jira</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-27"><span class="status-dot" id="dot-27"></span><span id="status-text-27">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('27','_27','Incident Population','Pull all security incidents from the audit period from PagerDuty. List each with: date, severity, systems affected, root cause, and resolution date. Confirm all P1/P2 incidents have a post-mortem linked.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('3', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Organizational Structure','CC1.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="5" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.4</span>
+              <span class="ctrl-crlg">CRLG#5</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">New Employee Onboarding</div>
+            <div class="ctrl-desc">For a selected sample of new employees during the audit period, provide the training tracking table.</div>
           </div>
-          <div class="grc-result" id="result-27"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-28">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_28</div><div><div class="grc-title">IT Security Meetings</div><div class="grc-category">CRLG#28 · System Operations</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Sample of security and IT meeting calendar invitations (5 weeks), meeting agenda, and IT security tickets for action items.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('5', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('New Employee Onboarding','CC1.4')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-42">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_42</div><div><div class="grc-title">Endpoint Antivirus Report</div><div class="grc-category">CRLG#42 · System Operations</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Antivirus installed on all production systems and employee laptops. AV logs report for last month verifying daily scans and updated virus definitions.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">JAMF</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-42"><span class="status-dot" id="dot-42"></span><span id="status-text-42">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('42','_42','Endpoint Antivirus Report','From JAMF, generate a report of all employee-managed laptops. Confirm antivirus is installed and active on each device. Count compliant vs non-compliant endpoints and list any gaps.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="621" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.5</span>
+              <span class="ctrl-crlg">CRLG#6</span>
+              <span class="ctrl-tool-chip">Google Drive</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Policy Documents</div>
+            <div class="ctrl-desc">All company policies and procedures (Employee Handbook, Information Security Policies, SDLC, Incident Response, Hardening). Screenshot of internal drive confirming policies are up to date.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('621','_6','Policy Documents','Download the latest security and compliance policies from the relevant Google Drive folder and verify they are updated (Employee Handbook, Information Security Policies, SDLC, Incident Response, Hardening). Confirm the policies are placed in the correct evidence folder. Report what was found and any gaps.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-621"><span class="status-dot" id="dot-621"></span><span id="status-text-621">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-621"></div>
           </div>
-          <div class="grc-result" id="result-42"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-44">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_44</div><div><div class="grc-title">Security Events Escalation</div><div class="grc-category">CRLG#44 · System Operations</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Root cause analysis for any information security incidents during the audit period. Summary report from Cloudflare.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('621', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Policy Documents','CC1.5')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-45">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_45</div><div><div class="grc-title">Root Cause Analysis</div><div class="grc-category">CRLG#45 · System Operations</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence of change requests created following high severity incidents, including root cause analysis reviewed by operations management.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <!-- ── RISK ASSESSMENT ── -->
-        <div class="grc-card" id="grc-card-20">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_20</div><div><div class="grc-title">Asset Inventory Export</div><div class="grc-category">CRLG#20 · Risk Assessment</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">A master list of the entity's system component and technology assets, accounting for additions and removals during the audit period.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS</span><span class="grc-tool-chip">Platform</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-20"><span class="status-dot" id="dot-20"></span><span id="status-text-20">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('20','_20','Asset Inventory Export','Export the full asset inventory as of the audit date. List all infrastructure assets grouped by environment (prod/stag/test), with asset type, owner, and data classification. Flag any untagged or unclassified assets.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="7" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.6</span>
+              <span class="ctrl-crlg">CRLG#7</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Job Requirements & Hiring</div>
+            <div class="ctrl-desc">For a sample of new employees during the audit period, provide documentation of the recruitment process (background checks, reference checks, interview minutes, etc.).</div>
           </div>
-          <div class="grc-result" id="result-20"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-21">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_21</div><div><div class="grc-title">Risk Management Process</div><div class="grc-category">CRLG#21 · Risk Assessment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">The company's Information Security Risk Management Policy confirming a formal risk management process and risk mitigation strategy is in place.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('7', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Job Requirements & Hiring','CC1.6')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-22">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_22</div><div><div class="grc-title">Annual Risk Assessment (ERA)</div><div class="grc-category">CRLG#22 · Risk Assessment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Company's approved annual Enterprise Risk Assessment (ERA), reviewed and approved by senior management.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-47">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_47</div><div><div class="grc-title">Risk-Based Change Requests</div><div class="grc-category">CRLG#47 · Risk Assessment</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Company's approved annual ERA and evidence that change requests were created based on identified needs from the risk assessment.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <!-- ── CONTROL ACTIVITIES ── -->
-        <div class="grc-card" id="grc-card-23">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_23</div><div><div class="grc-title">DR Test / Business Recovery</div><div class="grc-category">CRLG#23 · Control Activities</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Business recovery plan and last DR test results. Recovery plans including restoration of backups are tested annually.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-24">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_24</div><div><div class="grc-title">Penetration Test / SAST Report</div><div class="grc-category">CRLG#24 · Control Activities</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Internal/external vulnerability tests including results (penetration test + SAST vulnerability tests). Annual pen test by independent third party.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Orca Security</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-24"><span class="status-dot" id="dot-24"></span><span id="status-text-24">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('24','_24','SAST Vulnerability Report','From Orca Security, export all SAST vulnerabilities identified on source code during the audit period. Report totals by severity (Critical/High/Medium/Low), remediation rate, and any unresolved critical items.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="8" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.7</span>
+              <span class="ctrl-crlg">CRLG#8</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Management Team Meetings</div>
+            <div class="ctrl-desc">Sample of management meeting calendar invitations (5 weeks) and meeting agenda covering security, confidentiality and availability issues.</div>
           </div>
-          <div class="grc-result" id="result-24"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-25">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_25</div><div><div class="grc-title">Remediation Plans</div><div class="grc-category">CRLG#25 · Control Activities</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Remediation plans established based upon severity level of deficiencies identified during vulnerability scans.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('8', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Management Team Meetings','CC1.7')">+ Jira</button>
         </div>
-
-        <!-- ── MONITORING ACTIVITIES ── -->
-        <div class="grc-card" id="grc-card-26">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_26</div><div><div class="grc-title">Monitoring Dashboard</div><div class="grc-category">CRLG#26 · Monitoring Activities</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Coralogix monitoring dashboard confirming all critical systems are monitored. Alert configuration evidence. CloudWatch showing every asset/instance is monitored. Coralogix CSPM security metrics and alert rules.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">CloudWatch</span><span class="grc-tool-chip">Coralogix CSPM</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-26"><span class="status-dot" id="dot-26"></span><span id="status-text-26">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('26','_26','Monitoring Dashboard','Collect evidence that all production infrastructure is monitored. Check CloudWatch: confirm all instances have monitoring enabled. Check Coralogix CSPM: list active security metrics, alert rules, and any triggered alerts during the audit period.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="10" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.8</span>
+              <span class="ctrl-crlg">CRLG#10</span>
+              <span class="ctrl-tool-chip">HiBob</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Active Employee List</div>
+            <div class="ctrl-desc">A list of current active employees across all entities. BDO will provide a sample for annual performance review evidence.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('10','_10','Active Employee List','Export the full list of active employees from HiBob as of today. Include: name, department, location, start date, and employment status. Flag any accounts that appear inactive but are still enabled.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-10"><span class="status-dot" id="dot-10"></span><span id="status-text-10">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-10"></div>
           </div>
-          <div class="grc-result" id="result-26"></div>
         </div>
-
-        <!-- ── LOGICAL AND PHYSICAL ACCESS CONTROLS ── -->
-        <div class="grc-card" id="grc-card-29">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_29</div><div><div class="grc-title">Okta Groups & Role-Based Access</div><div class="grc-category">CRLG#29 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">A list of users from Okta based on roles/groups. A list of permission groups/GitHub roles and who is in each group. Owners vs normal users per group.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-29"><span class="status-dot" id="dot-29"></span><span id="status-text-29">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('29','_29','Okta Groups & Users','From Okta, list all groups with their complete user roster. For each group, separate owners from regular users. Flag any group with users who are no longer active employees.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('10', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Active Employee List','CC1.8')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="13" data-cat="cc1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC1.9</span>
+              <span class="ctrl-crlg">CRLG#13</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Security Awareness Training</div>
+            <div class="ctrl-desc">Security awareness training course agenda and completion tracking for all employees.</div>
           </div>
-          <div class="grc-result" id="result-29"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-30">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_30</div><div><div class="grc-title">AWS Prod Access (IAM + SSO)</div><div class="grc-category">CRLG#30 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">AWS user list and permissions by role. SSO configuration enabled for all AWS users. Walkthrough of user authentication process. Group names with prod account access in Okta.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS IAM</span><span class="grc-tool-chip">SSO/SAML</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-30"><span class="status-dot" id="dot-30"></span><span id="status-text-30">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('30','_30','AWS Prod Access (IAM+SSO)','List all Okta groups with access to production AWS accounts. For each group: user list, IAM permission set assigned, and SSO/SAML configuration. Flag any over-privileged access or users bypassing SSO.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('13', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Security Awareness Training','CC1.9')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="9" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.1</span>
+              <span class="ctrl-crlg">CRLG#9</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Whistleblower / Ethical Reports</div>
+            <div class="ctrl-desc">Whistleblower policy and evidence of ethical reporting mechanism communicated to all employees.</div>
           </div>
-          <div class="grc-result" id="result-30"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-31">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_31</div><div><div class="grc-title">SSO / Password Policy</div><div class="grc-category">CRLG#31 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-semi">◑ Maybe</span></div>
-          <div class="grc-desc">Policies of SSO to company programs. Screenshot of password requirements when accessing all in-scope systems. Requires Okta admin permissions.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-31"><span class="status-dot" id="dot-31"></span><span id="status-text-31">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('31','_31','SSO & Password Policy','Check the Okta password policy: minimum length, complexity requirements, MFA enforcement, session timeout settings. Confirm SSO is configured for all in-scope systems. Flag any settings below industry standard.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('9', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Whistleblower / Ethical Reports','CC2.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="11" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.2</span>
+              <span class="ctrl-crlg">CRLG#11</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Confidentiality Changes</div>
+            <div class="ctrl-desc">Confidentiality commitments change notification sent to all relevant internal and external parties.</div>
           </div>
-          <div class="grc-result" id="result-31"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-32">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_32</div><div><div class="grc-title">Admin Access List</div><div class="grc-category">CRLG#32 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-semi">◑ Maybe</span></div>
-          <div class="grc-desc">A list of Okta admins and a list of AWS admins. Requires Okta admin permissions to extract.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-32"><span class="status-dot" id="dot-32"></span><span id="status-text-32">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('32','_32','Admin Access List','List all Okta admin users and all AWS admin users. Flag any unexpected or over-privileged accounts. Confirm admin count is appropriate.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('11', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Confidentiality Changes','CC2.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="12" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.3</span>
+              <span class="ctrl-crlg">CRLG#12</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Customer Responsibilities / SLA</div>
+            <div class="ctrl-desc">SLA document and evidence that the SLA is published on the company website and communicated to customers.</div>
           </div>
-          <div class="grc-result" id="result-32"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-33">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_33</div><div><div class="grc-title">Prod Environment & DB Access</div><div class="grc-category">CRLG#33 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of users with access to the database and production environment. DB and prod environment user permissions by role. SSO enabled for all database and prod environments.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">AWS IAM</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-33"><span class="status-dot" id="dot-33"></span><span id="status-text-33">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('33','_33','Prod Environment & DB Access','List all groups and users with access to the production environment and database. For each: IAM permission set, SSO/SAML configuration. Flag any accounts with direct DB access bypassing SSO.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('12', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Customer Responsibilities / SLA','CC2.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="1538" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.4</span>
+              <span class="ctrl-crlg">CRLG#15</span>
+              <span class="ctrl-tool-chip">Salesforce</span>
+              <span class="ctrl-badge badge-semi" title="Semi-automatable">&#9680; Semi</span>
+            </div>
+            <div class="ctrl-title">Customer Population</div>
+            <div class="ctrl-desc">A list of new customers added during the audit period. BDO will select a sample to verify contract terms and onboarding.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('1538','_15','Customer Population','Export the list of new customers added during the audit period from Salesforce. Include: company name, contract start date, ARR, and assigned CSM. BDO will sample from this list.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-1538"><span class="status-dot" id="dot-1538"></span><span id="status-text-1538">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-1538"></div>
           </div>
-          <div class="grc-result" id="result-33"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-34">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_34</div><div><div class="grc-title">GitHub / Source Control Access</div><div class="grc-category">CRLG#34 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of users with access to GitHub. SSO enabled for all GitHub users. List of users with permission to approve code/infrastructure/security changes (admin users).</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Okta</span><span class="grc-tool-chip">GitHub</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-34"><span class="status-dot" id="dot-34"></span><span id="status-text-34">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('34','_34','GitHub Source Control Access','From Okta, list all groups with GitHub access, including owners vs regular users. Confirm SSO is enforced. Flag any users with admin/approval rights who are not authorized.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('1538', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Customer Population','CC2.4')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="16" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.5</span>
+              <span class="ctrl-crlg">CRLG#16</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Incident Response Communication</div>
+            <div class="ctrl-desc">Evidence that incident response policies and procedures are communicated to relevant internal and external users on Coralogix website.</div>
           </div>
-          <div class="grc-result" id="result-34"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-35">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_35</div><div><div class="grc-title">Quarterly Access Review</div><div class="grc-category">CRLG#35 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">User permissions review approved by relevant managers for Q1 (3/12 months) for all systems in scope.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('16', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Incident Response Communication','CC2.5')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-36">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_36</div><div><div class="grc-title">New Hire Population</div><div class="grc-category">CRLG#36 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">For a sample of new employees during the audit period, provide evidence showing how selected employees received system access (onboarding access provisioning).</div>
-          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-36"><span class="status-dot" id="dot-36"></span><span id="status-text-36">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('36','_36','New Hire Population','From HiBob, list all employees hired during the audit period across all sites. Include: name, start date, department, site/entity. Count per site and flag any missing onboarding data.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="17" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.6</span>
+              <span class="ctrl-crlg">CRLG#17</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Customer Updates / Status Page</div>
+            <div class="ctrl-desc">Evidence that new features and modifications are communicated to customers via Coralogix's status page and emails.</div>
           </div>
-          <div class="grc-result" id="result-36"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-37">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_37</div><div><div class="grc-title">Offboarding Population</div><div class="grc-category">CRLG#37 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of terminated employees during the audit period (Aug 1, 2024 – Sep 30, 2025). BDO will sample and require offboarding tickets with evidence of permission removal.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">HiBob</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-37"><span class="status-dot" id="dot-37"></span><span id="status-text-37">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('37','_37','Offboarding Population','From HiBob, list all employees who left (terminated/resigned) during the audit period across all sites. Include: name, last day, department, site. Confirm access revocation evidence exists for each.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('17', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Customer Updates / Status Page','CC2.6')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="18" data-cat="cc2">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC2.7</span>
+              <span class="ctrl-crlg">CRLG#18</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">How-To / FAQ</div>
+            <div class="ctrl-desc">Screenshot of the company's FAQ and support manual (website) and screenshot showing the end user can ask questions from the Coralogix platform.</div>
           </div>
-          <div class="grc-result" id="result-37"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-39">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_39</div><div><div class="grc-title">Remote Access / VPN (Teleport)</div><div class="grc-category">CRLG#39 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Teleport users list for production environment access. Evidence of SSO connection via Okta for all remote access to production.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Teleport</span><span class="grc-tool-chip">Okta</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-39"><span class="status-dot" id="dot-39"></span><span id="status-text-39">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('39','_39','Remote Access VPN Teleport','List all users in Teleport with access to the production environment. Confirm SSO via Okta is enforced. Flag any direct access bypassing Teleport/VPN.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('18', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('How-To / FAQ','CC2.7')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="20" data-cat="cc3">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC3.1</span>
+              <span class="ctrl-crlg">CRLG#20</span>
+              <span class="ctrl-tool-chip">AWS</span><span class="ctrl-tool-chip">Platform</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Asset Inventory Export</div>
+            <div class="ctrl-desc">A master list of the entity's system component and technology assets, accounting for additions and removals during the audit period.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('20','_20','Asset Inventory Export','Export the full asset inventory as of the audit date. List all infrastructure assets grouped by environment (prod/stag/test), with asset type, owner, and data classification. Flag any untagged or unclassified assets.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-20"><span class="status-dot" id="dot-20"></span><span id="status-text-20">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-20"></div>
           </div>
-          <div class="grc-result" id="result-39"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-41">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_41</div><div><div class="grc-title">Firewall / Prod Security Groups</div><div class="grc-category">CRLG#41 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Screenshot of FW rules, last update date, and users with permission to change rules. Security group configurations for a sample of production instances.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS Security Groups</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-41"><span class="status-dot" id="dot-41"></span><span id="status-text-41">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('41','_41','Firewall Prod Security Groups','Review security group configurations for a sample of production AWS instances. List inbound/outbound rules, flag any 0.0.0.0/0 open rules, confirm least-privilege, and list users with permission to modify rules.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('20', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Asset Inventory Export','CC3.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="21" data-cat="cc3">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC3.2</span>
+              <span class="ctrl-crlg">CRLG#21</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Risk Management Process</div>
+            <div class="ctrl-desc">The company's Information Security Risk Management Policy confirming a formal risk management process and risk mitigation strategy is in place.</div>
           </div>
-          <div class="grc-result" id="result-41"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-43">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_43</div><div><div class="grc-title">SFTP / Encryption in Transit</div><div class="grc-category">CRLG#43 · Logical and Physical Access Controls</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence of SSL/SFTP/HTTPS protocols in use for all defined connectivity points and communications between the processing center and users.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('21', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Risk Management Process','CC3.2')">+ Jira</button>
         </div>
-
-        <!-- ── RISK MITIGATION ── -->
-        <div class="grc-card" id="grc-card-40">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_40</div><div><div class="grc-title">Vendor SOC2 Review</div><div class="grc-category">CRLG#40 · Risk Mitigation</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">SOC2 reports for critical subservice organizations (AWS, Atlassian, GitHub). Evidence of review with no violations. CUECs reviewed with compensating controls associated.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-55">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_55</div><div><div class="grc-title">Vendor Population</div><div class="grc-category">CRLG#55 · Risk Mitigation</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of new vendors and related parties during the audit period. For a sample, provide NDA/confidentiality agreement and contract/T&C with third parties.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Vendor Registry</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-55"><span class="status-dot" id="dot-55"></span><span id="status-text-55">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('55','_55','Vendor Population','From the vendor registry (ZIP), list all active vendors in the audit period. For each: vendor name, contract dates, criticality tier, last security review date, and whether a current SOC2 or equivalent report is on file. Flag vendors with expired or missing reports.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="22" data-cat="cc3">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC3.3</span>
+              <span class="ctrl-crlg">CRLG#22</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Annual Risk Assessment (ERA)</div>
+            <div class="ctrl-desc">Company's approved annual Enterprise Risk Assessment (ERA), reviewed and approved by senior management.</div>
           </div>
-          <div class="grc-result" id="result-55"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-56">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_56</div><div><div class="grc-title">Vendor Compliance Assessment</div><div class="grc-category">CRLG#56 · Risk Mitigation</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Vendor risk assessment for critical services and vendor due-diligence form confirming compliance with confidentiality commitments.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('22', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Annual Risk Assessment (ERA)','CC3.3')">+ Jira</button>
         </div>
-
-        <!-- ── CHANGE MANAGEMENT ── -->
-        <div class="grc-card" id="grc-card-46">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_46</div><div><div class="grc-title">Environment Segregation</div><div class="grc-category">CRLG#46 · Change Management</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Screenshot of segregated environments in AWS (development, testing, production). All AWS accounts with account IDs confirming environment separation.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS Organizations</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-46"><span class="status-dot" id="dot-46"></span><span id="status-text-46">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('46','_46','AWS Account Inventory','List all AWS accounts in the organization with their account ID, name, and environment type (prod/stag/test). Confirm environment separation is enforced. Flag any accounts without a clear owner or classification.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="47" data-cat="cc3">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC3.4</span>
+              <span class="ctrl-crlg">CRLG#47</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Risk-Based Change Requests</div>
+            <div class="ctrl-desc">Company's approved annual ERA and evidence that change requests were created based on identified needs from the risk assessment.</div>
           </div>
-          <div class="grc-result" id="result-46"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-49">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_49</div><div><div class="grc-title">Change Documentation (Jira)</div><div class="grc-category">CRLG#49 · Change Management</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence for planning/sprint meeting (5 weeks) and screenshots of Jira board showing tasks are prioritized and documented.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('47', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Risk-Based Change Requests','CC3.4')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-50">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_50</div><div><div class="grc-title">Automated Tests (Cypress)</div><div class="grc-category">CRLG#50 · Change Management</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Evidence of automatic tests running regularly (status from Cypress) to validate code quality.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
-        </div>
-
-        <div class="grc-card" id="grc-card-51">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_51</div><div><div class="grc-title">Branch Protection Rules</div><div class="grc-category">CRLG#51 · Change Management</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">GitHub branch protection rules for master/main on the two in-scope repositories. GitHub settings confirming merging is blocked on test failure.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-51"><span class="status-dot" id="dot-51"></span><span id="status-text-51">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('51','_51','Branch Protection Rules','For the two in-scope GitHub repositories, report branch protection settings on master/main: required reviewers count, status checks required, admin bypass allowed, force push disabled. Flag any gaps.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="26" data-cat="cc4">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC4.1</span>
+              <span class="ctrl-crlg">CRLG#26</span>
+              <span class="ctrl-tool-chip">Coralogix CSPM</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Internal Audit / Compliance Monitoring</div>
+            <div class="ctrl-desc">Internal compliance monitoring report confirming controls are evaluated on an ongoing basis. CSPM scan results.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('26','_26','Internal Audit / Compliance Monitoring','Pull the latest compliance monitoring report from Coralogix CSPM. Summarize: number of controls monitored, pass/fail ratio, critical gaps, and last scan date.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-26"><span class="status-dot" id="dot-26"></span><span id="status-text-26">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-26"></div>
           </div>
-          <div class="grc-result" id="result-51"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-53">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_53</div><div><div class="grc-title">IaC Repo Access</div><div class="grc-category">CRLG#53 · Change Management</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of users with permissions to approve security, code, and infrastructure changes from GitHub. Only authorized personnel can modify production infrastructure definitions.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-53"><span class="status-dot" id="dot-53"></span><span id="status-text-53">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('53','_53','IaC Repo Access','List all users and teams with write or admin access to the IaC GitHub repository. Flag any unexpected or over-privileged accounts. Confirm access matches the approved list.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('26', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Internal Audit / Compliance Monitoring','CC4.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="23" data-cat="cc5">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC5.1</span>
+              <span class="ctrl-crlg">CRLG#23</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">DR Test / Business Recovery</div>
+            <div class="ctrl-desc">Business recovery plan and last DR test results. Recovery plans including restoration of backups are tested annually.</div>
           </div>
-          <div class="grc-result" id="result-53"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-54">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_54</div><div><div class="grc-title">Deployment Notifications</div><div class="grc-category">CRLG#54 · Change Management</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">Deployment notification evidence in Slack/Emails confirming stakeholders are notified after each production deployment.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('23', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('DR Test / Business Recovery','CC5.1')">+ Jira</button>
         </div>
-
-        <div class="grc-card" id="grc-card-525354">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">52_53_54</div><div><div class="grc-title">Change Platform Data (Code Review)</div><div class="grc-category">Change Management</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">List of changes deployed to production from GitHub during the audit period. BDO will sample: design doc, pull request/code review, test results, approval prior to production deployment.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">GitHub</span><span class="grc-tool-chip">Terraform</span><span class="grc-tool-chip">CI/CD</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-525354"><span class="status-dot" id="dot-525354"></span><span id="status-text-525354">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('525354','52_53_54','Change Platform Data','Extract change management evidence for controls 52-54. Report: total deployments in audit period, deployments with approval, any that bypassed review, rollbacks performed. Confirm CI/CD pipeline enforces approval gates.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="24" data-cat="cc5">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC5.2</span>
+              <span class="ctrl-crlg">CRLG#24</span>
+              <span class="ctrl-tool-chip">Orca Security</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Penetration Test / SAST Report</div>
+            <div class="ctrl-desc">Internal/external vulnerability tests including results (penetration test + SAST vulnerability tests). Annual pen test by independent third party.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('24','_24','Penetration Test / SAST Report','From Orca Security, export all SAST vulnerabilities identified on source code during the audit period. Report totals by severity (Critical/High/Medium/Low), remediation rate, and any unresolved critical items.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-24"><span class="status-dot" id="dot-24"></span><span id="status-text-24">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-24"></div>
           </div>
-          <div class="grc-result" id="result-525354"></div>
         </div>
-
-        <!-- ── CONFIDENTIALITY ── -->
-        <div class="grc-card" id="grc-card-48">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_48</div><div><div class="grc-title">Data Retention & Destruction</div><div class="grc-category">CRLG#48 · Confidentiality</div></div></div><span class="grc-badge badge-manual">✗ Manual</span></div>
-          <div class="grc-desc">List of terminated customers during audit period. BDO will sample and require evidence of data/environment deletion when the retention period is reached.</div>
-          <div class="grc-footer"><div class="grc-status"><span style="font-size:.75rem;color:var(--text3)">Manual evidence required</span></div></div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('24', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Penetration Test / SAST Report','CC5.2')">+ Jira</button>
         </div>
-
-        <!-- ── AVAILABILITY ── -->
-        <div class="grc-card" id="grc-card-57">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_57</div><div><div class="grc-title">Database Backup</div><div class="grc-category">CRLG#57 · Availability</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Screenshot of DB backup scheduling to S3. DB backup logs from at least last month. Elasticsearch backup settings. AWS admin users list. Evidence for GitHub backup or SOC2 report for Git.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS RDS</span><span class="grc-tool-chip">S3</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-57"><span class="status-dot" id="dot-57"></span><span id="status-text-57">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('57','_57','Database Backup','Confirm DB backups are enabled with correct retention for all prod databases. Show backup scheduling to S3 and last month backup logs. Flag any prod databases without backup enabled.')">▶ Run Agent</button>
+      </div>
+      <div class="soc2-control-card" data-id="25" data-cat="cc5">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC5.3</span>
+              <span class="ctrl-crlg">CRLG#25</span>
+              <span class="ctrl-tool-chip">CloudWatch</span><span class="ctrl-tool-chip">Coralogix CSPM</span><span class="ctrl-tool-chip">Okta</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Remediation Plans</div>
+            <div class="ctrl-desc">Remediation plans established based upon severity level of detected vulnerabilities. Evidence of tracking and resolution.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('25','_25','Remediation Plans','From CloudWatch and Coralogix CSPM, list all open findings with severity ≥ High. For each finding: show status, assigned owner, and target remediation date. Flag overdue items.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-25"><span class="status-dot" id="dot-25"></span><span id="status-text-25">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-25"></div>
           </div>
-          <div class="grc-result" id="result-57"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-58">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_58</div><div><div class="grc-title">Multi-AZ Replication</div><div class="grc-category">CRLG#58 · Availability</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">AWS monitor confirming availability zones are active. Infrastructure (database, servers) replication schedule and log of replicas from last month.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS RDS</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-58"><span class="status-dot" id="dot-58"></span><span id="status-text-58">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('58','_58','Multi-AZ Replication','Confirm Multi-AZ is enabled for all prod RDS instances. List each prod database with its Multi-AZ status and availability zones. Flag any prod databases without Multi-AZ.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('25', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Remediation Plans','CC5.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="29" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.1</span>
+              <span class="ctrl-crlg">CRLG#29</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Physical Security (Data Center)</div>
+            <div class="ctrl-desc">Physical access controls for the data center (colocation or cloud). Evidence of restricted physical access to servers.</div>
           </div>
-          <div class="grc-result" id="result-58"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-59">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_59</div><div><div class="grc-title">Redundancy</div><div class="grc-category">CRLG#59 · Availability</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Evidence that redundancy has been implemented for all critical cloud-based infrastructure components.</div>
-          <div class="grc-tools"><span class="grc-tool-chip">AWS</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-59"><span class="status-dot" id="dot-59"></span><span id="status-text-59">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('59','_59','Redundancy Check','Confirm redundancy is implemented for all critical infrastructure components. Check load balancers, auto-scaling groups, and multi-region failover configurations.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('29', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Physical Security (Data Center)','CC6.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="30" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.2</span>
+              <span class="ctrl-crlg">CRLG#30</span>
+              <span class="ctrl-tool-chip">Okta</span><span class="ctrl-tool-chip">AWS IAM</span><span class="ctrl-tool-chip">SSO/SAML</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">AWS Prod Access (IAM + SSO)</div>
+            <div class="ctrl-desc">AWS user list and permissions by role. SSO configuration enabled. All production access via Okta SSO/SAML.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('30','_30','AWS Prod Access (IAM + SSO)','Export all AWS IAM users and roles with production access. Cross-reference with Okta SSO assignments. Confirm all access is via SSO/SAML. Flag any users with direct IAM access or overly permissive policies (Admin, *).')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-30"><span class="status-dot" id="dot-30"></span><span id="status-text-30">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-30"></div>
           </div>
-          <div class="grc-result" id="result-59"></div>
         </div>
-
-        <div class="grc-card" id="grc-card-60">
-          <div class="grc-card-top"><div class="grc-left"><div class="grc-id">_60</div><div><div class="grc-title">Monitoring & Alerts</div><div class="grc-category">CRLG#60 · Availability</div></div></div><span class="grc-badge badge-full">⚡ Yes</span></div>
-          <div class="grc-desc">Prometheus dashboard screenshot. Prometheus monitor alert configuration. Slack alert notifications from Prometheus. Grafana hardware dashboard (uptime, disk space, CPU usage).</div>
-          <div class="grc-tools"><span class="grc-tool-chip">Prometheus</span><span class="grc-tool-chip">Grafana</span><span class="grc-tool-chip">CloudWatch</span></div>
-          <div class="grc-footer">
-            <div class="grc-status" id="status-60"><span class="status-dot" id="dot-60"></span><span id="status-text-60">Not run</span></div>
-            <button class="btn-primary" onclick="runGRC('60','_60','Monitoring & Alerts','Collect evidence of monitoring dashboards and alert configurations. Check Prometheus alert rules, Grafana uptime/disk/CPU dashboards, and confirm Slack notifications are configured and active.')">▶ Run Agent</button>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('30', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('AWS Prod Access (IAM + SSO)','CC6.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="31" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.3</span>
+              <span class="ctrl-crlg">CRLG#31</span>
+              <span class="ctrl-tool-chip">Okta</span>
+              <span class="ctrl-badge badge-semi" title="Semi-automatable">&#9680; Semi</span>
+            </div>
+            <div class="ctrl-title">SSO / Password Policy</div>
+            <div class="ctrl-desc">Policies of SSO to company programs. Screenshot of password policy settings in Okta (MFA, session timeout, complexity).</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('31','_31','SSO / Password Policy','From Okta, export the current password policy and MFA enforcement settings. Confirm: minimum password length ≥ 12, MFA required for all users, session timeout ≤ 8 hours. Flag any gaps.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-31"><span class="status-dot" id="dot-31"></span><span id="status-text-31">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-31"></div>
           </div>
-          <div class="grc-result" id="result-60"></div>
         </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('31', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('SSO / Password Policy','CC6.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="32" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.4</span>
+              <span class="ctrl-crlg">CRLG#32</span>
+              <span class="ctrl-tool-chip">Okta</span><span class="ctrl-tool-chip">AWS</span>
+              <span class="ctrl-badge badge-semi" title="Semi-automatable">&#9680; Semi</span>
+            </div>
+            <div class="ctrl-title">Admin Access List</div>
+            <div class="ctrl-desc">A list of Okta admins and a list of AWS admins. Requires Okta and AWS admin access to export.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('32','_32','Admin Access List','Export the list of Okta admins and AWS account admins. For each: confirm business justification and last access date. Flag any admins who have not logged in for 90+ days.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-32"><span class="status-dot" id="dot-32"></span><span id="status-text-32">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-32"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('32', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Admin Access List','CC6.4')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="33" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.5</span>
+              <span class="ctrl-crlg">CRLG#33</span>
+              <span class="ctrl-tool-chip">Okta</span><span class="ctrl-tool-chip">AWS IAM</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Prod Environment & DB Access</div>
+            <div class="ctrl-desc">List of users with access to the database and production environment, with their access roles and justification.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('33','_33','Prod Environment & DB Access','List all users with direct database and production environment access. Include role, access method, and last login. Confirm access is restricted to authorized personnel only.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-33"><span class="status-dot" id="dot-33"></span><span id="status-text-33">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-33"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('33', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Prod Environment & DB Access','CC6.5')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="34" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.6</span>
+              <span class="ctrl-crlg">CRLG#34</span>
+              <span class="ctrl-tool-chip">Okta</span><span class="ctrl-tool-chip">GitHub</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">GitHub / Source Control Access</div>
+            <div class="ctrl-desc">List of users with access to GitHub. SSO enabled for all GitHub access via Okta.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('34','_34','GitHub / Source Control Access','Export all GitHub organization members and their repository access levels. Confirm SSO is enforced. Flag external collaborators and users with admin access.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-34"><span class="status-dot" id="dot-34"></span><span id="status-text-34">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-34"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('34', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('GitHub / Source Control Access','CC6.6')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="35" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.7</span>
+              <span class="ctrl-crlg">CRLG#35</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Quarterly Access Review</div>
+            <div class="ctrl-desc">User permissions review approved by relevant managers for Q1–Q4 of the audit period.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('35', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Quarterly Access Review','CC6.7')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="36" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.8</span>
+              <span class="ctrl-crlg">CRLG#36</span>
+              <span class="ctrl-tool-chip">HiBob</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">New Hire Population</div>
+            <div class="ctrl-desc">For a sample of new employees during the audit period, provide evidence of access provisioning (Okta, GitHub, AWS).</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('36','_36','New Hire Population','From HiBob, export all employees hired during the audit period. Confirm each new hire completed onboarding (background check, security training, system access provisioned via Okta). Flag any gaps.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-36"><span class="status-dot" id="dot-36"></span><span id="status-text-36">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-36"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('36', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('New Hire Population','CC6.8')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="37" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.9</span>
+              <span class="ctrl-crlg">CRLG#37</span>
+              <span class="ctrl-tool-chip">HiBob</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Offboarding Population</div>
+            <div class="ctrl-desc">List of terminated employees during the audit period (Aug 1, 2024 – July 31, 2025). Confirm accounts deactivated.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('37','_37','Offboarding Population','From HiBob, export all terminated employees during the audit period. For each: confirm Okta account deactivated within 24 hours, AWS access removed, and laptop returned. Flag any gaps.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-37"><span class="status-dot" id="dot-37"></span><span id="status-text-37">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-37"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('37', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Offboarding Population','CC6.9')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="39" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.10</span>
+              <span class="ctrl-crlg">CRLG#39</span>
+              <span class="ctrl-tool-chip">Teleport</span><span class="ctrl-tool-chip">Okta</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Remote Access / VPN (Teleport)</div>
+            <div class="ctrl-desc">Teleport users list for production environment access. Evidence of SSO authentication via Okta for all Teleport sessions.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('39','_39','Remote Access / VPN (Teleport)','Export all active Teleport users with production environment access. Confirm access is SSO-authenticated via Okta. List users with their assigned roles and last session date. Flag unused accounts (no session in 60+ days).')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-39"><span class="status-dot" id="dot-39"></span><span id="status-text-39">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-39"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('39', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Remote Access / VPN (Teleport)','CC6.10')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="41" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.11</span>
+              <span class="ctrl-crlg">CRLG#41</span>
+              <span class="ctrl-tool-chip">AWS Security Groups</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Firewall / Prod Security Groups</div>
+            <div class="ctrl-desc">Screenshot of FW rules, last update date, and users with permission to modify security groups in AWS.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('41','_41','Firewall / Prod Security Groups','Export all AWS security group rules for production environments. Flag any rules allowing 0.0.0.0/0 (open to internet) on non-standard ports. Report total rules, flagged rules, and last modification date.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-41"><span class="status-dot" id="dot-41"></span><span id="status-text-41">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-41"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('41', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Firewall / Prod Security Groups','CC6.11')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="43" data-cat="cc6">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC6.12</span>
+              <span class="ctrl-crlg">CRLG#43</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">SFTP / Encryption in Transit</div>
+            <div class="ctrl-desc">Evidence of SSL/SFTP/HTTPS protocols in use for all defined data flows, especially customer-facing APIs and file transfers.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('43', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('SFTP / Encryption in Transit','CC6.12')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="19" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.1</span>
+              <span class="ctrl-crlg">CRLG#19</span>
+              <span class="ctrl-tool-chip">Intercom</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">CS Incidents Report</div>
+            <div class="ctrl-desc">Log tracker report from Intercom for Customer Support service tickets during the audit period. BDO will sample tickets to verify SLA compliance.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('19','_19','CS Incidents Report','Generate a customer support incident report from Intercom filtered to the audit period. List total tickets, resolved vs open, average resolution time, SLA compliance, and any breaches. Note any access limitations.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-19"><span class="status-dot" id="dot-19"></span><span id="status-text-19">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-19"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('19', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('CS Incidents Report','CC7.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="27" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.2</span>
+              <span class="ctrl-crlg">CRLG#27</span>
+              <span class="ctrl-tool-chip">PagerDuty</span><span class="ctrl-tool-chip">Jira</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Incident Population</div>
+            <div class="ctrl-desc">List of security incidents for the audit period from PagerDuty. BDO will sample incidents to verify resolution. Also check the relevant Slack group.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('27','_27','Incident Population','Pull all security incidents from the audit period from PagerDuty. List each with: date, severity, systems affected, root cause, and resolution date. Confirm all P1/P2 incidents have a post-mortem linked.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-27"><span class="status-dot" id="dot-27"></span><span id="status-text-27">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-27"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('27', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Incident Population','CC7.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="28" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.3</span>
+              <span class="ctrl-crlg">CRLG#28</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">IT Security Meetings</div>
+            <div class="ctrl-desc">Sample of security and IT meeting calendar invitations (5 weeks), meeting agenda, and IT security tickets for action items.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('28', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('IT Security Meetings','CC7.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="42" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.4</span>
+              <span class="ctrl-crlg">CRLG#42</span>
+              <span class="ctrl-tool-chip">JAMF</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Endpoint Antivirus Report</div>
+            <div class="ctrl-desc">Antivirus installed on all production systems and employee laptops. AV logs report for last month verifying daily scans and updated virus definitions.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('42','_42','Endpoint Antivirus Report','From JAMF, generate a report of all employee-managed laptops. Confirm antivirus is installed and active on each device. Count compliant vs non-compliant endpoints and list any gaps.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-42"><span class="status-dot" id="dot-42"></span><span id="status-text-42">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-42"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('42', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Endpoint Antivirus Report','CC7.4')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="44" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.5</span>
+              <span class="ctrl-crlg">CRLG#44</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Security Events Escalation</div>
+            <div class="ctrl-desc">Root cause analysis for any information security incidents during the audit period. Summary report from Cloudflare.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('44', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Security Events Escalation','CC7.5')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="45" data-cat="cc7">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC7.6</span>
+              <span class="ctrl-crlg">CRLG#45</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Root Cause Analysis</div>
+            <div class="ctrl-desc">Evidence of change requests created following high severity incidents, including root cause analysis reviewed by operations management.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('45', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Root Cause Analysis','CC7.6')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="46" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.1</span>
+              <span class="ctrl-crlg">CRLG#46</span>
+              <span class="ctrl-tool-chip">GitHub</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Change Management Policy</div>
+            <div class="ctrl-desc">Evidence of change management policy and procedure. GitHub pull request process as the formal change management workflow.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('46','_46','Change Management Policy','From GitHub, export all pull requests merged to main/master during the audit period. Confirm each PR has: at least one approving reviewer, passing CI checks, and linked ticket. Flag any direct commits bypassing PR review.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-46"><span class="status-dot" id="dot-46"></span><span id="status-text-46">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-46"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('46', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Change Management Policy','CC8.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="49" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.2</span>
+              <span class="ctrl-crlg">CRLG#49</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Change Documentation (Jira)</div>
+            <div class="ctrl-desc">Evidence for planning/sprint meeting (5 weeks) and screenshot of Jira backlog showing change requests.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('49', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Change Documentation (Jira)','CC8.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="50" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.3</span>
+              <span class="ctrl-crlg">CRLG#50</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Automated Tests (Cypress)</div>
+            <div class="ctrl-desc">Evidence of automatic tests running regularly (status from CI/CD pipeline showing test results).</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('50', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Automated Tests (Cypress)','CC8.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="51" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.4</span>
+              <span class="ctrl-crlg">CRLG#51</span>
+              <span class="ctrl-tool-chip">GitHub</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Branch Protection Rules</div>
+            <div class="ctrl-desc">GitHub branch protection rules for master/main on the two in-scope repositories.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('51','_51','Branch Protection Rules','Export branch protection rules for all main/master branches across the two in-scope GitHub repositories. Confirm: required reviewers ≥ 1, status checks required, force push disabled, and admin enforcement.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-51"><span class="status-dot" id="dot-51"></span><span id="status-text-51">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-51"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('51', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Branch Protection Rules','CC8.4')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="53" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.5</span>
+              <span class="ctrl-crlg">CRLG#53</span>
+              <span class="ctrl-tool-chip">GitHub</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">IaC Repo Access</div>
+            <div class="ctrl-desc">List of users with permissions to approve security, code, and infrastructure changes in GitHub.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('53','_53','IaC Repo Access','List all users with write/admin permissions to infrastructure-as-code repositories on GitHub. Confirm each user has business justification. Flag anyone outside the DevOps/Security team.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-53"><span class="status-dot" id="dot-53"></span><span id="status-text-53">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-53"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('53', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('IaC Repo Access','CC8.5')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="54" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.6</span>
+              <span class="ctrl-crlg">CRLG#54</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Deployment Notifications</div>
+            <div class="ctrl-desc">Deployment notification evidence in Slack/Emails confirming successful deployments to production.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('54', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Deployment Notifications','CC8.6')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="525354" data-cat="cc8">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC8.7</span>
+              <span class="ctrl-crlg">CRLG#52</span>
+              <span class="ctrl-tool-chip">GitHub</span><span class="ctrl-tool-chip">Terraform</span><span class="ctrl-tool-chip">CI/CD</span><span class="ctrl-tool-chip">AWS RDS</span><span class="ctrl-tool-chip">S3</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Change Platform Data (Code Review)</div>
+            <div class="ctrl-desc">List of changes deployed to production from GitHub during the audit period, with code review and CI/CD evidence.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('525354','_52','Change Platform Data (Code Review)','List all changes deployed to production from GitHub during the audit period. For each deployment: confirm code review, CI/CD pipeline pass, and post-deploy validation. Flag any deployments without approval or failed checks.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-525354"><span class="status-dot" id="dot-525354"></span><span id="status-text-525354">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-525354"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('525354', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Change Platform Data (Code Review)','CC8.7')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="40" data-cat="cc9">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC9.1</span>
+              <span class="ctrl-crlg">CRLG#40</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Business Insurance</div>
+            <div class="ctrl-desc">Evidence of business insurance coverage appropriate to the entity's risk profile.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('40', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Business Insurance','CC9.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="55" data-cat="cc9">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC9.2</span>
+              <span class="ctrl-crlg">CRLG#55</span>
+              <span class="ctrl-tool-chip">Vendor Registry</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Vendor Population</div>
+            <div class="ctrl-desc">List of new vendors and related parties during the audit period. BDO will sample vendors for due diligence evidence.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('55','_55','Vendor Population','From the internal vendor registry, export all active vendors used during the audit period. Include: vendor name, service type, data access level, and last risk assessment date. Flag vendors with data access but no completed assessment.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-55"><span class="status-dot" id="dot-55"></span><span id="status-text-55">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-55"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('55', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Vendor Population','CC9.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="56" data-cat="cc9">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">CC9.3</span>
+              <span class="ctrl-crlg">CRLG#56</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">Vendor Compliance Assessment</div>
+            <div class="ctrl-desc">Vendor risk assessment for critical services and vendor due-diligence evidence (SOC 2 reports, security questionnaires).</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('56', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Vendor Compliance Assessment','CC9.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="48" data-cat="c1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">C1.1</span>
+              <span class="ctrl-crlg">CRLG#48</span>
+              
+              <span class="ctrl-badge badge-manual" title="Manual">&#10006; Manual</span>
+            </div>
+            <div class="ctrl-title">NDA / Confidentiality Agreements</div>
+            <div class="ctrl-desc">NDA and confidentiality agreements executed with employees, contractors, and relevant third parties.</div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('48', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('NDA / Confidentiality Agreements','C1.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="57" data-cat="a1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">A1.1</span>
+              <span class="ctrl-crlg">CRLG#57</span>
+              <span class="ctrl-tool-chip">AWS RDS</span><span class="ctrl-tool-chip">S3</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Backup Configuration</div>
+            <div class="ctrl-desc">AWS backup configuration for all production RDS and S3 resources. Confirm automated backups enabled with 30-day retention.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('57','_57','Backup Configuration','From AWS, export backup configurations for all production RDS instances and S3 buckets. Confirm: automated backups enabled, retention ≥ 30 days, backup tests performed. List any resources with missing or insufficient backups.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-57"><span class="status-dot" id="dot-57"></span><span id="status-text-57">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-57"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('57', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Backup Configuration','A1.1')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="58" data-cat="a1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">A1.2</span>
+              <span class="ctrl-crlg">CRLG#58</span>
+              <span class="ctrl-tool-chip">AWS RDS</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Multi-AZ Replication</div>
+            <div class="ctrl-desc">AWS monitor confirming availability zones are active. Infrastructure deployed across multiple AZs.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('58','_58','Multi-AZ Replication','From AWS RDS, export the configuration for all production database instances. Confirm Multi-AZ deployment is enabled. List all instances with their AZ configuration and failover status.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-58"><span class="status-dot" id="dot-58"></span><span id="status-text-58">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-58"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('58', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Multi-AZ Replication','A1.2')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="59" data-cat="a1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">A1.3</span>
+              <span class="ctrl-crlg">CRLG#59</span>
+              <span class="ctrl-tool-chip">AWS</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Redundancy</div>
+            <div class="ctrl-desc">Evidence that redundancy has been implemented for all critical infrastructure components.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('59','_59','Redundancy','From AWS, confirm redundancy is implemented for all critical components (load balancers, compute, databases). Report: services with multi-AZ, auto-scaling groups, and health check configurations. Flag single points of failure.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-59"><span class="status-dot" id="dot-59"></span><span id="status-text-59">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-59"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('59', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Redundancy','A1.3')">+ Jira</button>
+        </div>
+      </div>
+      <div class="soc2-control-card" data-id="60" data-cat="a1">
+        <div class="ctrl-left">
+          <span class="ctrl-status-dot not_started"></span>
+          <div class="ctrl-info">
+            <div class="ctrl-top">
+              <span class="ctrl-ccid">A1.4</span>
+              <span class="ctrl-crlg">CRLG#60</span>
+              <span class="ctrl-tool-chip">Prometheus</span><span class="ctrl-tool-chip">Grafana</span><span class="ctrl-tool-chip">CloudWatch</span>
+              <span class="ctrl-badge badge-auto" title="Fully automatable">&#9889; Auto</span>
+            </div>
+            <div class="ctrl-title">Monitoring & Alerts</div>
+            <div class="ctrl-desc">Prometheus dashboard screenshot. Prometheus monitor alert configuration and on-call schedule.</div>
+              <div class="ctrl-agent-row">
+                <button class="btn-run-agent" onclick="runGRC('60','_60','Monitoring & Alerts','From CloudWatch and Prometheus/Grafana, export all active monitoring alerts for production. Confirm: uptime monitors active, latency and error rate alerts configured, on-call rotation set up. List any critical services without monitoring coverage.')">&#9654; Run Agent</button>
+                <div class="grc-status" id="status-60"><span class="status-dot" id="dot-60"></span><span id="status-text-60">Not run</span></div>
+              </div>
+              <div class="grc-result" id="result-60"></div>
+          </div>
+        </div>
+        <div class="ctrl-right">
+          <select class="status-sel" onchange="saveStatus('60', this.value)">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="passing">Passing</option>
+            <option value="failing">Failing</option>
+          </select>
+          <button class="btn-jira-ctrl" onclick="openJira('Monitoring & Alerts','A1.4')">+ Jira</button>
+        </div>
+      </div>
+          </div>
+        </div>
+      </div>
 
-      </div><!-- /grc-grid -->
+      <script>
+        // ── SOC2 Dashboard JS ────────────────────────────────────────────────
+        const SOC2_KEY = 'soc2_statuses';
+        const JIRA_KEY = 'jira_base_url';
+
+        function getStatuses() { return JSON.parse(localStorage.getItem(SOC2_KEY) || '{}'); }
+        function saveStatus(id, val) {
+          const s = getStatuses(); s[id] = val;
+          localStorage.setItem(SOC2_KEY, JSON.stringify(s));
+          updateGRCDashboard();
+        }
+        function updateGRCDashboard() {
+          const s = getStatuses();
+          const allCards = document.querySelectorAll('.soc2-control-card');
+          const total = allCards.length;
+          let passing=0, failing=0, inprog=0, notstarted=0;
+          allCards.forEach(card => {
+            const id = card.dataset.id;
+            const st = s[id] || 'not_started';
+            const sel = card.querySelector('.status-sel');
+            if(sel) sel.value = st;
+            const dot = card.querySelector('.ctrl-status-dot');
+            if(dot) { dot.className = 'ctrl-status-dot ' + st; }
+            if(st==='passing') passing++;
+            else if(st==='failing') failing++;
+            else if(st==='in_progress') inprog++;
+            else notstarted++;
+          });
+          // KPIs
+          const el = id => document.getElementById(id);
+          if(el('kpi-total')) el('kpi-total').textContent = total;
+          if(el('kpi-passing')) el('kpi-passing').textContent = passing;
+          if(el('kpi-failing')) el('kpi-failing').textContent = failing;
+          if(el('kpi-inprog')) el('kpi-inprog').textContent = inprog;
+          if(el('kpi-notstarted')) el('kpi-notstarted').textContent = notstarted;
+          // Progress bar
+          const pct = v => total ? Math.round(v/total*100) : 0;
+          if(el('pb-passing')) el('pb-passing').style.width = pct(passing)+'%';
+          if(el('pb-inprog')) el('pb-inprog').style.width = pct(inprog)+'%';
+          if(el('pb-failing')) el('pb-failing').style.width = pct(failing)+'%';
+          if(el('pb-notstarted')) el('pb-notstarted').style.width = pct(notstarted)+'%';
+          // Sidebar counts
+          document.querySelectorAll('.sidebar-cc').forEach(el => {
+            const cat = el.dataset.cat;
+            const cards = cat === 'all'
+              ? document.querySelectorAll('.soc2-control-card')
+              : document.querySelectorAll('.soc2-control-card[data-cat="'+cat+'"]');
+            const countEl = el.querySelector('.sidebar-count');
+            if(countEl) countEl.textContent = cards.length;
+          });
+        }
+        function filterGRC(cat) {
+          document.querySelectorAll('.sidebar-cc').forEach(el => el.classList.toggle('active', el.dataset.cat === cat));
+          document.querySelectorAll('.soc2-control-card').forEach(card => {
+            card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+          });
+          const catNames = {
+            all:'All Controls', cc1:'Control Environment', cc2:'Communication & Information',
+            cc3:'Risk Assessment', cc4:'Monitoring Activities', cc5:'Control Activities',
+            cc6:'Logical & Physical Access', cc7:'System Operations', cc8:'Change Management',
+            cc9:'Risk Mitigation', c1:'Confidentiality', a1:'Availability'
+          };
+          const visible = cat==='all'
+            ? document.querySelectorAll('.soc2-control-card').length
+            : document.querySelectorAll('.soc2-control-card[data-cat="'+cat+'"]').length;
+          const ct = document.getElementById('cat-title');
+          const cs = document.getElementById('cat-sub');
+          const cc = document.getElementById('cat-count');
+          if(ct) ct.textContent = catNames[cat] || cat;
+          if(cs) cs.textContent = cat==='all' ? 'All SOC 2 Trust Service Criteria' : 'CC Category: '+cat.toUpperCase();
+          if(cc) cc.textContent = visible + ' controls';
+        }
+        function searchGRC(val) {
+          const q = val.toLowerCase();
+          document.querySelectorAll('.soc2-control-card').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            card.style.display = text.includes(q) ? '' : 'none';
+          });
+        }
+        function openJira(title, ccId) {
+          let base = localStorage.getItem(JIRA_KEY);
+          if(!base) {
+            base = prompt('Enter your Jira project URL (e.g. https://yourcompany.atlassian.net/jira/software/projects/SEC/boards):', '');
+            if(!base) return;
+            localStorage.setItem(JIRA_KEY, base);
+          }
+          try {
+            const url = new URL(base.startsWith('http') ? base : 'https://'+base);
+            const createUrl = url.origin+'/secure/CreateIssueDetails!init.jspa?pid=10000&issuetype=10001&summary='+encodeURIComponent('[SOC2 '+ccId+'] '+title);
+            window.open(createUrl, '_blank');
+          } catch(e) {
+            alert('Invalid Jira URL. Please reconfigure via the Sync Jira button.');
+            localStorage.removeItem(JIRA_KEY);
+          }
+        }
+        function syncJira() {
+          const base = prompt('Enter your Jira base URL to configure Jira integration:', localStorage.getItem(JIRA_KEY) || '');
+          if(base !== null) { localStorage.setItem(JIRA_KEY, base); alert('Jira URL saved!'); }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+          updateGRCDashboard();
+        });
+        // Also run immediately in case DOMContentLoaded already fired
+        if(document.readyState !== 'loading') {
+          updateGRCDashboard();
+        }
+      </script>
     </div><!-- /tab-grc -->
 
     <!-- ═══ TAB 6: Contract KPI ═══ -->
