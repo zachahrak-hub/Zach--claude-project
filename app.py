@@ -668,20 +668,38 @@ def _vet_vendor_impl():
     pages = {url: content for url, content in zip(urls, results) if content.strip()}
     context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items()) if pages else "No pages could be fetched."
 
-    # Step 3: Generate concise vetting verdict
+    # Step 3: Generate full 18-criteria vetting report + AI verdict
     report_resp = client.messages.create(
         model="claude-sonnet-4-5-20250929",
-        max_tokens=600,
+        max_tokens=1200,
         messages=[{"role": "user", "content":
-            f"You are a legal & compliance analyst at Coralogix. Evaluate '{company_name}' against our 4 vendor criteria.\n"
-            f"Be extremely concise — one line per criterion. Professional tone, no fluff.\n\n"
-            f"Format EXACTLY like this (no extra text, no headers, no sections):\n\n"
-            f"1. Data Training — ✅/⚠️/❌ [one sentence]\n"
-            f"2. Data Ownership — ✅/⚠️/❌ [one sentence]\n"
-            f"3. Data Retention — ✅/⚠️/❌ [one sentence]\n"
-            f"4. Legal Risk — ✅/⚠️/❌ [one sentence]\n\n"
-            f"Overall: ✅ Low Risk / ⚠️ Medium Risk / ❌ High Risk — [one sentence max]\n\n"
-            f"If info is missing from the pages, say '⚠️ Not confirmed publicly' for that criterion.\n\n"
+            f"You are a legal & compliance analyst at Coralogix vetting '{company_name}'.\n"
+            f"One line per criterion. Professional, direct. No fluff. If info missing → ⚠️ Not confirmed publicly.\n\n"
+            f"Format EXACTLY like this:\n\n"
+            f"🔐 SECURITY\n"
+            f"1. Certifications — ✅/⚠️/❌ [SOC 2 Type II, ISO 27001, PCI-DSS status]\n"
+            f"2. Pen Testing — ✅/⚠️/❌ [annual pen test / report availability]\n"
+            f"3. Encryption — ✅/⚠️/❌ [at rest + in transit]\n"
+            f"4. Access Controls — ✅/⚠️/❌ [MFA, RBAC, least privilege]\n\n"
+            f"🌍 DATA & PRIVACY\n"
+            f"5. Data Training — ✅/⚠️/❌ [AI/ML training on customer data?]\n"
+            f"6. Data Ownership — ✅/⚠️/❌ [customer retains full ownership?]\n"
+            f"7. Data Retention — ✅/⚠️/❌ [minimized, purpose-limited?]\n"
+            f"8. Sub-processors — ✅/⚠️/❌ [listed publicly, customer notified of changes?]\n"
+            f"9. Data Residency — ✅/⚠️/❌ [EU/US/other, customer control?]\n"
+            f"10. Breach Notification — ✅/⚠️/❌ [72h GDPR SLA?]\n"
+            f"11. Data Deletion — ✅/⚠️/❌ [full deletion post-termination, timeline?]\n\n"
+            f"📋 CONTRACTUAL\n"
+            f"12. Legal Risk — ✅/⚠️/❌ [overall legal classification]\n"
+            f"13. DPA — ✅/⚠️/❌ [GDPR-compliant DPA available?]\n"
+            f"14. Right to Audit — ✅/⚠️/❌ [customer or third-party audit rights?]\n"
+            f"15. Liability Cap — ✅/⚠️/❌ [reasonable cap in contract?]\n\n"
+            f"⚡ OPERATIONAL\n"
+            f"16. Uptime SLA — ✅/⚠️/❌ [SLA %, financial credits?]\n"
+            f"17. Disaster Recovery — ✅/⚠️/❌ [documented BCP/DR?]\n"
+            f"18. Financial Stability — ✅/⚠️/❌ [publicly traded / stable / risk of shutdown?]\n\n"
+            f"🤖 AI VERDICT: ✅ APPROVED / ⚠️ CONDITIONAL APPROVAL / ❌ REJECTED\n"
+            f"[One sentence: overall risk level + key reason + recommended action]\n\n"
             f"WEB PAGES:\n{context}"}]
     )
     report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
@@ -705,15 +723,17 @@ def _vet_vendor_impl():
     except Exception:
         links_data = {"trust_center": None, "documents": []}
 
-    # Determine overall risk status from the report
+    # Determine overall risk status from the AI VERDICT line
     overall_status = "medium_risk"
     for line in report.splitlines():
         ll = line.lower()
-        if "overall" in ll:
-            if "low" in ll:
+        if "ai verdict" in ll or "verdict" in ll:
+            if "approved" in ll and "conditional" not in ll:
                 overall_status = "low_risk"
-            elif "high" in ll:
+            elif "rejected" in ll:
                 overall_status = "high_risk"
+            else:
+                overall_status = "medium_risk"
             break
 
     # Save vetting record
