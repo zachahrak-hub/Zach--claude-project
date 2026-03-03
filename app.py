@@ -3,41 +3,193 @@ import json
 import os
 import tempfile
 import re
+import secrets
+import logging
+import threading
+from datetime import datetime, timedelta
+from functools import wraps
+from collections import defaultdict
 
 import anthropic
 import openpyxl
 from dotenv import load_dotenv
-from functools import wraps
-from flask import Flask, jsonify, render_template, request, send_file, session, redirect, url_for
+from flask import Flask, jsonify, render_template, request, send_file, session, redirect, url_for, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from playwright.sync_api import sync_playwright
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# ── Security config ─────────────────────────────────────────────────────────────
+_secret = os.getenv("SECRET_KEY", "")
+if not _secret or _secret == "dev-secret-change-me":
+    import sys
+    if os.getenv("FLASK_ENV") == "production" or os.getenv("RAILWAY_ENVIRONMENT"):
+        sys.stderr.write("FATAL: SECRET_KEY env var is not set or is default. Refusing to start.\n")
+        sys.exit(1)
+    _secret = secrets.token_hex(32)   # safe random key for local dev only
+
+app.config.update(
+    SECRET_KEY=_secret,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("FORCE_HTTPS")),
+    SESSION_COOKIE_NAME="za_session",
+)
 
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 api_key = os.getenv("ANTHROPIC_API_KEY")
 client = anthropic.Anthropic(api_key=api_key)
 
+# ── Audit logging ────────────────────────────────────────────────────────────────
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(_DATA_DIR, exist_ok=True)
+
+_audit_logger = logging.getLogger("audit")
+_audit_handler = logging.FileHandler(os.path.join(_DATA_DIR, "audit.log"))
+_audit_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+_audit_logger.addHandler(_audit_handler)
+_audit_logger.setLevel(logging.INFO)
+
+def _audit(action: str, details: str = ""):
+    user = session.get("username", "anonymous")
+    ip = request.remote_addr or "unknown"
+    _audit_logger.info(f"user={user} ip={ip} action={action} {details}")
+
+# ── Brute-force / lockout tracking ──────────────────────────────────────────────
+_login_attempts: dict = defaultdict(lambda: {"count": 0, "since": None})
+_LOCKOUT_AFTER   = 5
+_LOCKOUT_MINUTES = 15
+_attempts_lock   = threading.Lock()
+
+def _check_lockout(ip: str) -> int:
+    """Return remaining lockout minutes (0 = not locked)."""
+    with _attempts_lock:
+        rec = _login_attempts[ip]
+        if rec["count"] >= _LOCKOUT_AFTER and rec["since"]:
+            elapsed = datetime.utcnow() - rec["since"]
+            remaining = timedelta(minutes=_LOCKOUT_MINUTES) - elapsed
+            if remaining.total_seconds() > 0:
+                return max(1, int(remaining.total_seconds() / 60))
+            else:
+                _login_attempts[ip] = {"count": 0, "since": None}
+    return 0
+
+def _record_failure(ip: str):
+    with _attempts_lock:
+        rec = _login_attempts[ip]
+        rec["count"] += 1
+        if rec["since"] is None:
+            rec["since"] = datetime.utcnow()
+
+def _clear_attempts(ip: str):
+    with _attempts_lock:
+        _login_attempts[ip] = {"count": 0, "since": None}
+
+# ── CSRF protection ──────────────────────────────────────────────────────────────
+def _get_csrf_token() -> str:
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+    return session["csrf_token"]
+
+def _verify_csrf() -> bool:
+    token = (request.headers.get("X-CSRF-Token")
+             or request.form.get("csrf_token", ""))
+    return bool(token and token == session.get("csrf_token"))
+
+def csrf_protect(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            if not _verify_csrf():
+                _audit("csrf_fail", f"path={request.path}")
+                if request.is_json or request.headers.get("X-Requested-With"):
+                    return jsonify({"error": "CSRF validation failed"}), 403
+                return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.context_processor
+def _inject_csrf():
+    return {"csrf_token": _get_csrf_token}
+
+# ── Security headers ─────────────────────────────────────────────────────────────
+@app.after_request
+def _security_headers(response):
+    h = response.headers
+    h["X-Frame-Options"]           = "SAMEORIGIN"
+    h["X-Content-Type-Options"]    = "nosniff"
+    h["X-XSS-Protection"]          = "1; mode=block"
+    h["Referrer-Policy"]           = "strict-origin-when-cross-origin"
+    h["Permissions-Policy"]        = "camera=(), microphone=(), geolocation=()"
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("FORCE_HTTPS"):
+        h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+# ── Multi-user support ───────────────────────────────────────────────────────────
+def _get_users() -> dict:
+    """Return {username: password_hash} dict.
+    Configure via USERS_JSON env var:
+      USERS_JSON='{"zach":"<hash>","roman":"<hash>"}'
+    Generate hashes with: python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('yourpassword'))"
+    Falls back to APP_USERNAME / APP_PASSWORD_HASH / APP_PASSWORD for backward compat.
+    """
+    raw = os.getenv("USERS_JSON", "")
+    if raw:
+        try:
+            return json.loads(raw)
+        except Exception:
+            pass
+    # Legacy single-user fallback
+    username = os.getenv("APP_USERNAME", "admin")
+    hashed   = os.getenv("APP_PASSWORD_HASH", "")
+    plain    = os.getenv("APP_PASSWORD", "changeme")
+    if not hashed:
+        hashed = generate_password_hash(plain)
+    return {username: hashed}
+
+def _verify_user(username: str, password: str) -> bool:
+    users = _get_users()
+    stored = users.get(username)
+    if not stored:
+        return False
+    # Support hashed (pbkdf2/scrypt) and plain legacy passwords
+    if stored.startswith(("pbkdf2:", "scrypt:", "argon2:")):
+        return check_password_hash(stored, password)
+    return stored == password  # legacy plain-text (should be migrated)
+
+# ── Input validation ─────────────────────────────────────────────────────────────
+def _require_str(data: dict, key: str, max_len: int = 4000, required: bool = True):
+    """Extract and validate a string field. Returns (value, error_response_or_None)."""
+    val = (data.get(key) or "").strip()
+    if required and not val:
+        return None, (jsonify({"error": f"\'{key}\' is required"}), 400)
+    if len(val) > max_len:
+        return None, (jsonify({"error": f"\'{key}\' exceeds {max_len} characters"}), 400)
+    return val, None
+
 
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("logged_in"):
-            # Return JSON error for API routes, redirect for page routes
-            if request.is_json or request.method == "POST":
+            if request.is_json or request.headers.get("X-Requested-With") or request.method == "POST":
                 return jsonify({"error": "Session expired. Please refresh and log in again."}), 401
             return redirect(url_for("login"))
+        # Refresh session activity timestamp
+        session.modified = True
         return f(*args, **kwargs)
     return decorated
 
 # ── Browser state ──────────────────────────────────────────────────────────────
 # Playwright must run on the same thread - use threading.local
-import threading
 _local = threading.local()
 
 # ── Agent conversation histories ───────────────────────────────────────────────
@@ -1807,24 +1959,77 @@ Question: {question}
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("20 per minute; 5 per 10 seconds")
 def login():
+    if session.get("logged_in"):
+        return redirect(url_for("index"))
     error = None
     if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        if (username == os.getenv("APP_USERNAME", "admin") and
-                password == os.getenv("APP_PASSWORD", "changeme")):
+        username = request.form.get("username", "").strip()[:64]
+        password = request.form.get("password", "")[:128]
+        ip = request.remote_addr or "unknown"
+
+        # CSRF check
+        if not _verify_csrf():
+            _audit("login_csrf_fail")
+            error = "Security validation failed. Please try again."
+        # Lockout check
+        elif (mins := _check_lockout(ip)) > 0:
+            _audit("login_locked", f"username={username}")
+            error = f"Too many failed attempts. Try again in {mins} minute(s)."
+        elif _verify_user(username, password):
+            _clear_attempts(ip)
+            session.clear()
             session["logged_in"] = True
+            session["username"]  = username
+            session.permanent    = True
+            _get_csrf_token()   # mint fresh CSRF token post-login
+            _audit("login_success", f"username={username}")
             return redirect(url_for("index"))
-        error = "Invalid username or password"
+        else:
+            _record_failure(ip)
+            _audit("login_fail", f"username={username}")
+            error = "Invalid username or password"
+
     return render_template("login.html", error=error)
 
 
 @app.route("/logout")
 def logout():
+    _audit("logout")
     session.clear()
     return redirect(url_for("login"))
 
+
+@app.route("/admin/audit")
+@login_required
+def admin_audit():
+    """View last 200 audit log lines. Admin only."""
+    log_path = os.path.join(_DATA_DIR, "audit.log")
+    lines = []
+    if os.path.exists(log_path):
+        with open(log_path) as f:
+            lines = f.readlines()[-200:]
+    lines.reverse()
+    html = "<html><head><title>Audit Log</title><style>body{font-family:monospace;font-size:13px;background:#0f172a;color:#94a3b8;padding:24px}p{margin:2px 0;border-bottom:1px solid #1e293b;padding:4px 0}.ts{color:#38bdf8}.act{color:#4ade80}</style></head><body>"
+    html += f"<h2 style='color:#e2e8f0;margin-bottom:16px'>Audit Log — last {len(lines)} entries</h2>"
+    for line in lines:
+        parts = line.strip()
+        html += f"<p>{parts}</p>"
+    html += "</body></html>"
+    return html
+
+@app.route("/admin/make-hash")
+@login_required
+def admin_make_hash():
+    """Generate a bcrypt hash for a given password. Usage: /admin/make-hash?pw=yourpassword"""
+    pw = request.args.get("pw", "")
+    if not pw:
+        return "<p>Usage: /admin/make-hash?pw=yourpassword</p>"
+    h = generate_password_hash(pw)
+    return (f"<pre style='font-family:monospace'>Hash for '{pw}':\n{h}\n\n"
+           f"Set as:\n  APP_PASSWORD_HASH={h}\n"
+           f"or in USERS_JSON:\n  {{\"username\": \"{h}\"}}</pre>")
 
 @app.route("/health")
 def health():

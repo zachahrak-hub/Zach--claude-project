@@ -171,11 +171,12 @@
 
     <div class="login-card">
       <form method="POST" action="/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Username</label>
-        <input type="text" name="username" placeholder="Enter your username" autofocus autocomplete="username" />
+        <input type="text" name="username" placeholder="Enter your username" autofocus autocomplete="username" maxlength="64" required />
 
         <label>Password</label>
-        <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password" />
+        <input type="password" name="password" placeholder="Enter your password" autocomplete="current-password" maxlength="128" required />
 
         {% if error %}
         <div class="error">❌ {{ error }}</div>
