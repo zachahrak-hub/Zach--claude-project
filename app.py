@@ -781,53 +781,71 @@ def _vet_vendor_impl():
     import concurrent.futures
     import requests as req
 
-    # Generate smart search queries
-    search_queries = [
-        f"{company_name} trust center",
-        f"{company_name} security compliance",
-        f"{company_name} SOC 2 report",
-        f"{company_name} ISO 27001",
-        f"site:{company_name.lower().replace(' ', '')} security OR compliance OR trust",
-        f"{company_name} data privacy",
-        f"{company_name} certifications security",
-    ]
+    # Vendor-specific trust center URLs (known patterns for major vendors)
+    VENDOR_TRUST_CENTERS = {
+        "wix": ["https://www.wix.com/en/security", "https://www.wix.com/en/about/security-privacy"],
+        "stripe": ["https://stripe.com/trust"],
+        "figma": ["https://www.figma.com/security/"],
+        "slack": ["https://slack.com/trust"],
+        "datadog": ["https://www.datadoghq.com/trust/"],
+        "github": ["https://github.com/security"],
+        "aws": ["https://aws.amazon.com/security/", "https://aws.amazon.com/compliance/"],
+        "gcp": ["https://cloud.google.com/security"],
+        "azure": ["https://azure.microsoft.com/en-us/explore/trusted-cloud/"],
+    }
 
-    # Helper: Extract URLs from DuckDuckGo search results
-    def _search_urls(query: str, max_results=3):
-        try:
-            import requests
-            # Use DuckDuckGo HTML endpoint (no API key needed)
-            url = "https://duckduckgo.com/html/"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
-            resp = requests.post(url, data={"q": query}, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                # Extract URLs from HTML (simple regex)
-                import re
-                urls = re.findall(r'href="([^"]*(?:' + company_name.lower().replace(' ', '') + r'[^"]*|trust|security|compliance)[^"]*)"', resp.text)
-                return [u for u in urls if u.startswith("http") and not "duckduckgo" in u][:max_results]
-        except Exception:
-            pass
-        return []
+    # Normalize company name for lookup
+    company_key = company_name.lower().replace(" ", "").replace(".", "")
 
-    # Search for real URLs
-    all_urls = set()
-    for query in search_queries[:4]:  # Limit to first 4 queries
-        found = _search_urls(query, max_results=2)
-        all_urls.update(found)
+    # Check if we have known trust centers for this vendor
+    if company_key in VENDOR_TRUST_CENTERS:
+        urls = VENDOR_TRUST_CENTERS[company_key]
+    else:
+        # Generic search for unknown vendors
+        search_queries = [
+            f"{company_name} trust center",
+            f"{company_name} security compliance",
+            f"{company_name} SOC 2",
+            f"{company_name} data privacy",
+        ]
 
-    # Add common trust center patterns for the domain
-    domain_hints = [
-        f"https://{company_name.lower().replace(' ', '')}.com",
-        f"https://{company_name.lower().replace(' ', '')}.com/trust",
-        f"https://{company_name.lower().replace(' ', '')}.com/security",
-        f"https://trust.{company_name.lower().replace(' ', '')}.com",
-        f"https://security.{company_name.lower().replace(' ', '')}.com",
-    ]
-    all_urls.update(domain_hints)
+        # Helper: Extract URLs from DuckDuckGo search results
+        def _search_urls(query: str, max_results=3):
+            try:
+                import requests
+                url = "https://duckduckgo.com/html/"
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+                resp = requests.post(url, data={"q": query}, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    # Extract URLs from HTML
+                    import re
+                    urls = re.findall(r'href="([^"]*(?:trust|security|compliance|certifications|privacy)[^"]*)"', resp.text)
+                    return [u for u in urls if u.startswith("http") and "duckduckgo" not in u][:max_results]
+            except Exception:
+                pass
+            return []
 
-    urls = list(all_urls)[:10]
+        # Search for URLs
+        all_urls = set()
+        for query in search_queries[:3]:
+            found = _search_urls(query, max_results=2)
+            all_urls.update(found)
+
+        # Add common domain patterns as fallback
+        domain_base = company_name.lower().replace(" ", "")
+        fallback_urls = [
+            f"https://{domain_base}.com",
+            f"https://www.{domain_base}.com",
+            f"https://{domain_base}.com/security",
+            f"https://{domain_base}.com/trust",
+            f"https://{domain_base}.com/compliance",
+            f"https://trust.{domain_base}.com",
+            f"https://security.{domain_base}.com",
+        ]
+        all_urls.update(fallback_urls)
+        urls = list(all_urls)[:10]
 
     if not urls:
         return jsonify({"error": f"Could not find pages for '{company_name}'"}), 500
