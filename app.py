@@ -789,6 +789,11 @@ def _vet_vendor_impl():
             "https://www.wix.com/website-security",
             "https://www.wix.com/manage/privacy-security-hub",
         ],
+        "salesforce": [
+            "https://www.salesforce.com/trust/",
+            "https://www.salesforce.com/company/privacy/",
+            "https://www.salesforce.com/company/social-responsibility/",
+        ],
         "stripe": ["https://stripe.com/trust"],
         "figma": ["https://www.figma.com/security/"],
         "slack": ["https://slack.com/trust"],
@@ -797,6 +802,10 @@ def _vet_vendor_impl():
         "aws": ["https://aws.amazon.com/security/", "https://aws.amazon.com/compliance/"],
         "gcp": ["https://cloud.google.com/security"],
         "azure": ["https://azure.microsoft.com/en-us/explore/trusted-cloud/"],
+        "notion": ["https://www.notion.so/security", "https://www.notion.so/Privacy"],
+        "asana": ["https://asana.com/security", "https://asana.com/trust"],
+        "jira": ["https://www.atlassian.com/trust/"],
+        "confluence": ["https://www.atlassian.com/trust/"],
     }
 
     # Normalize company name for lookup
@@ -806,51 +815,57 @@ def _vet_vendor_impl():
     if company_key in VENDOR_TRUST_CENTERS:
         urls = VENDOR_TRUST_CENTERS[company_key]
     else:
-        # Generic search for unknown vendors
-        search_queries = [
-            f"{company_name} trust center",
-            f"{company_name} security compliance",
-            f"{company_name} SOC 2",
-            f"{company_name} data privacy",
-        ]
+        # For unknown vendors: generate aggressive URL patterns
+        # Use Claude to identify the likely primary domain
+        domain_resp = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=100,
+            messages=[{"role": "user", "content":
+                f"What is the primary domain for {company_name}? "
+                f"Reply with ONLY the domain name without https:// or www (e.g., 'salesforce.com'), nothing else."}]
+        )
+        domain_text = next((b.text.strip() for b in domain_resp.content if hasattr(b, "text")), "").lower()
 
-        # Helper: Extract URLs from DuckDuckGo search results
-        def _search_urls(query: str, max_results=3):
-            try:
-                import requests
-                url = "https://duckduckgo.com/html/"
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                }
-                resp = requests.post(url, data={"q": query}, headers=headers, timeout=5)
-                if resp.status_code == 200:
-                    # Extract URLs from HTML
-                    import re
-                    urls = re.findall(r'href="([^"]*(?:trust|security|compliance|certifications|privacy)[^"]*)"', resp.text)
-                    return [u for u in urls if u.startswith("http") and "duckduckgo" not in u][:max_results]
-            except Exception:
-                pass
-            return []
+        # Parse domain from response
+        domain = None
+        if domain_text and "." in domain_text:
+            domain = domain_text.replace("https://", "").replace("www.", "").strip()
 
-        # Search for URLs
+        # Build comprehensive URL list
         all_urls = set()
-        for query in search_queries[:3]:
-            found = _search_urls(query, max_results=2)
-            all_urls.update(found)
 
-        # Add common domain patterns as fallback
-        domain_base = company_name.lower().replace(" ", "")
+        if domain:
+            # Add domain-based URLs
+            domain_patterns = [
+                f"https://{domain}",
+                f"https://www.{domain}",
+                f"https://security.{domain}",
+                f"https://trust.{domain}",
+                f"https://compliance.{domain}",
+                f"https://privacy.{domain}",
+                f"https://legal.{domain}",
+                f"https://{domain}/security",
+                f"https://{domain}/trust",
+                f"https://{domain}/compliance",
+                f"https://{domain}/privacy",
+                f"https://{domain}/legal",
+                f"https://{domain}/about/security",
+                f"https://{domain}/security-center",
+                f"https://{domain}/security/",
+            ]
+            all_urls.update(domain_patterns)
+
+        # Fallback: generic domain patterns from company name
+        domain_base = company_name.lower().replace(" ", "").replace(",", "")
         fallback_urls = [
             f"https://{domain_base}.com",
             f"https://www.{domain_base}.com",
             f"https://{domain_base}.com/security",
             f"https://{domain_base}.com/trust",
-            f"https://{domain_base}.com/compliance",
-            f"https://trust.{domain_base}.com",
-            f"https://security.{domain_base}.com",
         ]
         all_urls.update(fallback_urls)
-        urls = list(all_urls)[:10]
+
+        urls = list(all_urls)[:15]
 
     if not urls:
         return jsonify({"error": f"Could not find pages for '{company_name}'"}), 500
