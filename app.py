@@ -802,8 +802,9 @@ def _vet_vendor_impl():
     import concurrent.futures
 
     company_name = ""
+    document_content = ""  # Store uploaded document for compliance analysis
 
-    # If file uploaded — extract company name from it
+    # If file uploaded — extract company name AND compliance info from it
     if "file" in request.files:
         f = request.files["file"]
         suffix = "." + f.filename.rsplit(".", 1)[-1] if "." in f.filename else ".tmp"
@@ -811,7 +812,8 @@ def _vet_vendor_impl():
             f.save(tmp.name)
             tmp_path = tmp.name
         try:
-            raw_text = extract_text_from_file(tmp_path, f.filename)[:3000]
+            raw_text = extract_text_from_file(tmp_path, f.filename)[:5000]
+            document_content = raw_text  # Save for later compliance analysis
         finally:
             os.unlink(tmp_path)
         extract_resp = client.messages.create(
@@ -938,20 +940,32 @@ def _vet_vendor_impl():
     if not pages:
         return jsonify({"error": f"No accessible pages found for '{company_name}'. Try providing a company website URL or document."}), 400
 
-    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
+    # Build context from web pages + uploaded document
+    context_parts = []
+
+    # Add web pages first
+    for url, content in pages.items():
+        context_parts.append(f"=== {url} ===\n{content}")
+
+    # Add uploaded document if provided (important for compliance info!)
+    if document_content:
+        context_parts.append(f"=== UPLOADED DOCUMENT (DPA/Contract/Policy) ===\n{document_content}")
+
+    context = "\n\n".join(context_parts)
 
     # Step 3: Generate full 18-criteria vetting report + AI verdict
     report_resp = client.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=1200,
         messages=[{"role": "user", "content":
-            f"You are a senior compliance analyst vetting '{company_name}'. Be assertive and confident. Use the web content to make definitive assessments. If you find evidence, use it. If info is missing, explain why concisely. Do NOT hedge with 'not confirmed publicly' — be direct about what you found.\n"
+            f"You are a senior compliance analyst vetting '{company_name}'. Be assertive and confident. Use ALL content (web + documents) to make definitive assessments.\n"
+            f"IMPORTANT: If certifications (SOC 2, ISO, PCI, etc.) are found in uploaded documents (DPA/contracts), they COUNT AS VALID EVIDENCE. Do NOT mark as rejected just because they're not publicly visible.\n"
             f"One line per criterion. Actionable. Direct. CRITICAL: No markdown, no asterisks, no bold, no headers. Plain text only.\n\n"
             f"ASSESSMENT RULES:\n"
-            f"✅ Approved: Evidence found on website or inferred from company profile.\n"
+            f"✅ Approved: Evidence found on website OR in uploaded documents (DPA, contract, policies). Certifications count if documented.\n"
             f"⚠️ Conditional: Partial evidence or unclear. Explain what's missing.\n"
-            f"❌ Rejected: Evidence of non-compliance or serious gap.\n"
-            f"Format: One line per criterion. State what you found. Be specific.\n\n"
+            f"❌ Rejected: Evidence of non-compliance or NO certifications found anywhere (web or documents).\n"
+            f"Format: One line per criterion. State what you found. Be specific. If evidence from document, note it.\n\n"
             f"🔐 SECURITY\n"
             f"1. Certifications — ✅/⚠️/❌ State which certs are publicly listed (SOC 2, ISO, PCI, etc.)\n"
             f"2. Pen Testing — ✅/⚠️/❌ Evidence of annual testing or reports?\n"
