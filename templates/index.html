@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Zach Agent — Legal & Compliance</title>
+  <title>Coralogix — Q&A Assistant</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -62,12 +62,15 @@
 
     .logo-box {
       width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
       border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-      box-shadow: 0 2px 8px rgba(14,165,233,.3);
       flex-shrink: 0;
+    }
+
+    .logo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     .topbar-title {
@@ -676,10 +679,12 @@
   <!-- Top Navigation Bar -->
   <nav class="topbar">
     <div class="topbar-left">
-      <div class="logo-box">⚖️</div>
+      <div class="logo-box">
+        <img src="https://coralogix.com/wp-content/uploads/2022/07/coralogix-logo-dark.svg" alt="Coralogix Logo">
+      </div>
       <div>
-        <div class="topbar-title">Zach Agent</div>
-        <div class="topbar-sub">Legal &amp; Compliance Portal</div>
+        <div class="topbar-title">Coralogix</div>
+        <div class="topbar-sub">Q&amp;A Assistant Powered by Claude AI</div>
       </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
