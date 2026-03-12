@@ -518,6 +518,10 @@ def _get_llms_txt() -> str:
 
 def _cx_fetch(url: str, use_browser: bool = True) -> str:
     """Fetch URL content. Use browser for JS rendering, fallback to requests."""
+    # On Railway, disable browser (system libraries not available)
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        use_browser = False
+
     if use_browser:
         try:
             from playwright.sync_api import sync_playwright
