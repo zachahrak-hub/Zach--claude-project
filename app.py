@@ -777,29 +777,77 @@ def _vet_vendor_impl():
     if not company_name:
         return jsonify({"error": "Company name required"}), 400
 
-    # Step 1: Use Haiku to generate likely security/trust URLs for the company
-    url_resp = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=400,
-        messages=[{"role": "user", "content":
-            f"For the company '{company_name}', generate 8-10 likely URLs.\n"
-            f"PRIORITY — Trust Center (these are most important):\n"
-            f"  trust.<domain>.com, security.<domain>.com, <domain>.com/trust, <domain>.com/security\n"
-            f"Also include: homepage, /privacy, /legal, /compliance, /certifications\n"
-            f"Reply with ONLY full URLs starting with https://, one per line, no extra text."}]
-    )
-    url_text = next((b.text for b in url_resp.content if hasattr(b, "text")), "")
-    urls = [l.strip() for l in url_text.splitlines() if l.strip().startswith("https://")][:10]
+    # Step 1: Use web search to find REAL trust center and compliance pages
+    import concurrent.futures
+    import requests as req
+
+    # Generate smart search queries
+    search_queries = [
+        f"{company_name} trust center",
+        f"{company_name} security compliance",
+        f"{company_name} SOC 2 report",
+        f"{company_name} ISO 27001",
+        f"site:{company_name.lower().replace(' ', '')} security OR compliance OR trust",
+        f"{company_name} data privacy",
+        f"{company_name} certifications security",
+    ]
+
+    # Helper: Extract URLs from DuckDuckGo search results
+    def _search_urls(query: str, max_results=3):
+        try:
+            import requests
+            # Use DuckDuckGo HTML endpoint (no API key needed)
+            url = "https://duckduckgo.com/html/"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            resp = requests.post(url, data={"q": query}, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                # Extract URLs from HTML (simple regex)
+                import re
+                urls = re.findall(r'href="([^"]*(?:' + company_name.lower().replace(' ', '') + r'[^"]*|trust|security|compliance)[^"]*)"', resp.text)
+                return [u for u in urls if u.startswith("http") and not "duckduckgo" in u][:max_results]
+        except Exception:
+            pass
+        return []
+
+    # Search for real URLs
+    all_urls = set()
+    for query in search_queries[:4]:  # Limit to first 4 queries
+        found = _search_urls(query, max_results=2)
+        all_urls.update(found)
+
+    # Add common trust center patterns for the domain
+    domain_hints = [
+        f"https://{company_name.lower().replace(' ', '')}.com",
+        f"https://{company_name.lower().replace(' ', '')}.com/trust",
+        f"https://{company_name.lower().replace(' ', '')}.com/security",
+        f"https://trust.{company_name.lower().replace(' ', '')}.com",
+        f"https://security.{company_name.lower().replace(' ', '')}.com",
+    ]
+    all_urls.update(domain_hints)
+
+    urls = list(all_urls)[:10]
 
     if not urls:
-        return jsonify({"error": f"Could not determine URLs for '{company_name}'"}), 500
+        return jsonify({"error": f"Could not find pages for '{company_name}'"}), 500
 
     # Step 2: Fetch all URLs in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
-        results = list(ex.map(_cx_fetch, urls))
+    def _safe_fetch(url):
+        try:
+            return _cx_fetch(url)
+        except Exception:
+            return ""
 
-    pages = {url: content for url, content in zip(urls, results) if content.strip()}
-    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items()) if pages else "No pages could be fetched."
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+        results = list(ex.map(_safe_fetch, urls))
+
+    pages = {url: content for url, content in zip(urls, results) if content and content.strip()}
+
+    if not pages:
+        return jsonify({"error": f"No accessible pages found for '{company_name}'. Try providing a company website URL or document."}), 400
+
+    context = "\n\n".join(f"=== {url} ===\n{content}" for url, content in pages.items())
 
     # Step 3: Generate full 18-criteria vetting report + AI verdict
     report_resp = client.messages.create(
