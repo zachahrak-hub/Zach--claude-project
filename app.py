@@ -783,7 +783,12 @@ def _vet_vendor_impl():
 
     # Vendor-specific trust center URLs (known patterns for major vendors)
     VENDOR_TRUST_CENTERS = {
-        "wix": ["https://www.wix.com/en/security", "https://www.wix.com/en/about/security-privacy"],
+        "wix": [
+            "https://www.wix.com/security",
+            "https://www.wix.com/about/privacy",
+            "https://www.wix.com/website-security",
+            "https://www.wix.com/manage/privacy-security-hub",
+        ],
         "stripe": ["https://stripe.com/trust"],
         "figma": ["https://www.figma.com/security/"],
         "slack": ["https://slack.com/trust"],
