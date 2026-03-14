@@ -1124,16 +1124,47 @@ legal review for HIGH RISK vendors before signing contracts.
     except Exception:
         pass  # Don't fail the vetting if save fails
 
-    return jsonify({
-        "company": company_name,
-        "report": report,
-        "sources": list(pages.keys()),
+    # PHASE 3a: Structure report into machine-readable JSON format
+    # Extract verdict and decision from report
+    verdict = "CONDITIONAL"
+    decision = "CONDITIONAL"
+    risk_level = "Medium"
+
+    for line in report.splitlines():
+        ll = line.lower()
+        if "ai verdict" in ll:
+            if "approved" in ll and "conditional" not in ll:
+                verdict = "APPROVED"
+                decision = "USE"
+                risk_level = "Low"
+            elif "rejected" in ll:
+                verdict = "REJECTED"
+                decision = "DO NOT USE"
+                risk_level = "High"
+            break
+
+    structured_report = {
+        "summary": {
+            "vendor": company_name,
+            "date_assessed": date.today().isoformat(),
+            "verdict": verdict,
+            "decision": decision,
+            "risk_level": risk_level,
+        },
+        "certifications_summary": certifications,
         "trust_center": links_data.get("trust_center"),
         "documents": links_data.get("documents", []),
-        "status": overall_status,
-        # PHASE 2a: Include certifications in response
-        "certifications": certifications,
-    })
+        "sources": list(pages.keys()),
+        "assessment_metadata": {
+            "pages_fetched": len(urls),
+            "pages_accessible": len(pages),
+            "document_uploaded": bool(document_content),
+            "model_used": "claude-sonnet-4-5-20250929",
+        },
+        "full_report_text": report,  # Raw assessment for reference
+    }
+
+    return jsonify(structured_report)
 
 
 # ── Excel agent route ──────────────────────────────────────────────────────────
