@@ -1043,6 +1043,24 @@ legal review for HIGH RISK vendors before signing contracts.
 """
     report = disclaimer + "\n\n" + report
 
+    # PHASE 2a: Extract certifications from report
+    certifications = {}
+    cert_keywords = ["SOC 2", "ISO 27001", "ISO 27018", "PCI DSS", "HIPAA", "FedRAMP", "GDPR"]
+    for cert in cert_keywords:
+        if cert.lower() in report.lower():
+            # Find the line mentioning this certification
+            for line in report.splitlines():
+                if cert.lower() in line.lower():
+                    certifications[cert] = {
+                        "found": True,
+                        "evidence_line": line[:150]  # First 150 chars of evidence
+                    }
+                    break
+            if cert not in certifications:
+                certifications[cert] = {"found": False}
+        else:
+            certifications[cert] = {"found": False}
+
     # Step 4: Extract trust center URL and document links from fetched pages
     links_resp = client.messages.create(
         model="claude-sonnet-4-5-20250929",
@@ -1098,7 +1116,9 @@ legal review for HIGH RISK vendors before signing contracts.
                 "document_uploaded": bool(document_content),
                 "search_keywords": ["SOC 2", "ISO 27001", "PCI DSS", "GDPR", "encryption", "audit", "certifications"],
                 "assessment_duration_seconds": round(time.time() - assessment_start_time, 2)
-            }
+            },
+            # PHASE 2a: Certification tracking
+            "certifications": certifications
         })
         save_vendors(vendors)
     except Exception:
@@ -1111,6 +1131,8 @@ legal review for HIGH RISK vendors before signing contracts.
         "trust_center": links_data.get("trust_center"),
         "documents": links_data.get("documents", []),
         "status": overall_status,
+        # PHASE 2a: Include certifications in response
+        "certifications": certifications,
     })
 
 
