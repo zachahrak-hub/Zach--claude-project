@@ -1020,9 +1020,21 @@ def _vet_vendor_impl():
             f"Decision: USE / CONDITIONAL / DO NOT USE\n"
             f"Risk Level: Low / Medium / High\n"
             f"Action: Specific next step (e.g., request SOC 2 report, review DPA, etc.)\n\n"
-            f"WEB PAGES:\n{context}"}]
+            f"WEB PAGES:\n{context[:80000]}"}]  # Limit context to 80KB to avoid token overflow
     )
-    report = next((b.text for b in report_resp.content if hasattr(b, "text")), "No report generated.")
+    report = next((b.text for b in report_resp.content if hasattr(b, "text")), None)
+    if not report:
+        # Claude API failed to generate report - return detailed error
+        error_msg = "Claude API returned empty response"
+        if hasattr(report_resp, 'error') and report_resp.error:
+            error_msg = f"Claude API Error: {report_resp.error}"
+        return jsonify({
+            "error": f"Report generation failed: {error_msg}",
+            "pages_accessed": len(pages),
+            "sources": list(pages.keys()),
+            "hint": "This usually means rate limiting or API quota issue. Try again in a few seconds."
+        }), 503
+
     # Strip markdown formatting
     report = re.sub(r'\*\*(.+?)\*\*', r'\1', report)  # **bold** → plain
     report = re.sub(r'\*(.+?)\*',   r'\1', report)    # *italic* → plain
