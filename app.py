@@ -538,63 +538,78 @@ def _get_llms_txt() -> str:
 
 def _cx_fetch(url: str, use_browser: bool = True) -> str:
     """Fetch URL content. Use browser for JS rendering, fallback to requests."""
-    # On Railway, disable browser (system libraries not available)
-    if os.getenv("RAILWAY_ENVIRONMENT"):
-        use_browser = False
-
     if use_browser:
         try:
             from playwright.sync_api import sync_playwright
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                context = browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                )
-                page = context.new_page()
-                page.set_default_timeout(12000)
+                try:
+                    browser = p.chromium.launch(headless=True)
+                except Exception as launch_error:
+                    # Log failure reason for debugging
+                    print(f"[DEBUG] Chromium launch failed: {launch_error}")
+                    return _http_fallback(url)
 
                 try:
-                    # Try to load with networkidle (best for JS-heavy sites)
-                    page.goto(url, wait_until="networkidle", timeout=12000)
-                except Exception:
+                    context = browser.new_context(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    )
+                    page = context.new_page()
+                    page.set_default_timeout(12000)
+
                     try:
-                        # If networkidle times out, try load
-                        page.goto(url, wait_until="load", timeout=8000)
+                        # Try to load with networkidle (best for JS-heavy sites)
+                        page.goto(url, wait_until="networkidle", timeout=12000)
                     except Exception:
-                        # If load times out, accept what we have
+                        try:
+                            # If networkidle times out, try load
+                            page.goto(url, wait_until="load", timeout=8000)
+                        except Exception:
+                            # If load times out, accept what we have
+                            pass
+
+                    # Get page content (whatever loaded)
+                    content = page.content()
+                    browser.close()
+
+                    # Extract text from HTML
+                    from html.parser import HTMLParser
+                    class TextExtractor(HTMLParser):
+                        def __init__(self):
+                            super().__init__()
+                            self.text = []
+                        def handle_data(self, data):
+                            if data.strip():
+                                self.text.append(data.strip())
+
+                    extractor = TextExtractor()
+                    try:
+                        extractor.feed(content)
+                        text = " ".join(extractor.text)[:8000]
+                        return text if text.strip() else content[:3000]
+                    except Exception:
+                        return content[:3000]
+                except Exception as page_error:
+                    print(f"[DEBUG] Browser page error: {page_error}")
+                    try:
+                        browser.close()
+                    except:
                         pass
+                    return _http_fallback(url)
+        except Exception as browser_error:
+            print(f"[DEBUG] Browser error: {browser_error}")
+            return _http_fallback(url)
 
-                # Get page content (whatever loaded)
-                content = page.content()
-                browser.close()
+    return _http_fallback(url)
 
-                # Extract text from HTML
-                from html.parser import HTMLParser
-                class TextExtractor(HTMLParser):
-                    def __init__(self):
-                        super().__init__()
-                        self.text = []
-                    def handle_data(self, data):
-                        if data.strip():
-                            self.text.append(data.strip())
 
-                extractor = TextExtractor()
-                try:
-                    extractor.feed(content)
-                    text = " ".join(extractor.text)[:8000]
-                    return text if text.strip() else content[:3000]
-                except Exception:
-                    return content[:3000]
-        except Exception:
-            # Fallback to simple requests if browser fails
-            pass
-
-    # Fallback: simple HTTP request
+def _http_fallback(url: str) -> str:
+    """Simple HTTP fallback when browser is unavailable."""
     import requests as req
     try:
         r = req.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
         return r.text[:3000]
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG] HTTP fallback failed: {e}")
         return ""
 
 

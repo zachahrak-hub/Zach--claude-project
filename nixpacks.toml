@@ -1,0 +1,24 @@
+[phases.setup]
+# Install system dependencies needed by Chromium/Playwright
+nixPkgs = [
+  "libdbus",
+  "libatk",
+  "libpangocairo",
+  "libpango",
+  "glib",
+  "xorg.libX11",
+  "xorg.libxkbcommon",
+  "xorg.libxrandr",
+  "xorg.libxcomposite",
+  "xorg.libxdamage",
+  "xorg.libxext",
+  "xorg.libxfixes",
+  "xorg.libxinerama",
+  "xorg.libxss",
+  "xorg.libxtst",
+  "libdrm",
+  "mesa",
+  "libglvnd",
+  "egl-wayland",
+  "xvfb"
+]
