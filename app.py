@@ -16,7 +16,11 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file, session, redirect, url_for, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import sync_playwright
+    _PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    _PLAYWRIGHT_AVAILABLE = False
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -198,6 +202,8 @@ _agent_histories: dict = {}
 
 
 def get_page():
+    if not _PLAYWRIGHT_AVAILABLE:
+        raise RuntimeError("Browser automation is not available in this environment.")
     if not getattr(_local, "page", None):
         _local.pw = sync_playwright().start()
         _local.browser = _local.pw.chromium.launch(headless=True)
@@ -422,6 +428,20 @@ def _search_slack(query: str) -> str:
 
 # ── Tool executor (browser) ────────────────────────────────────────────────────
 def execute_tool(tool_name: str, tool_input: dict) -> str:
+    # Non-browser tools — handle before attempting to launch browser
+    if tool_name == "fetch_url":
+        import requests as req
+        try:
+            r = req.get(tool_input["url"], timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            return r.text[:4000]
+        except Exception as e:
+            return f"❌ fetch_url failed: {e}"
+    if tool_name == "search_slack":
+        return _search_slack(tool_input.get("query", ""))
+
+    if not _PLAYWRIGHT_AVAILABLE:
+        return "❌ Browser automation is not available in this environment (Playwright not installed)."
+
     page = get_page()
     try:
         if tool_name == "navigate":
