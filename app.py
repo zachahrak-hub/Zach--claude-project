@@ -974,10 +974,11 @@ def _vet_vendor_impl():
     context = "\n\n".join(context_parts)
 
     # Step 3: Generate full 18-criteria vetting report + AI verdict
-    report_resp = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=2000,
-        messages=[{"role": "user", "content":
+    try:
+        report_resp = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=2000,
+            messages=[{"role": "user", "content":
             f"You are a senior compliance analyst vetting '{company_name}'. Be assertive and confident. Use ALL content (web + documents) to make definitive assessments.\n"
             f"IMPORTANT: If certifications (SOC 2, ISO, PCI, etc.) are found in uploaded documents (DPA/contracts), they COUNT AS VALID EVIDENCE. Do NOT mark as rejected just because they're not publicly visible.\n"
             f"CRITICAL FORMAT: No markdown, no asterisks, no bold, no headers. Plain text only.\n\n"
@@ -1021,7 +1022,18 @@ def _vet_vendor_impl():
             f"Risk Level: Low / Medium / High\n"
             f"Action: Specific next step (e.g., request SOC 2 report, review DPA, etc.)\n\n"
             f"WEB PAGES:\n{context[:80000]}"}]  # Limit context to 80KB to avoid token overflow
-    )
+        )
+    except Exception as e:
+        # Claude API call failed - return detailed error
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}"
+        return jsonify({
+            "error": f"Claude API call failed: {error_detail}",
+            "pages_accessed": len(pages),
+            "sources": list(pages.keys()),
+            "hint": f"Full error: {traceback.format_exc()[-500:]}"
+        }), 503
+
     report = next((b.text for b in report_resp.content if hasattr(b, "text")), None)
     if not report:
         # Claude API failed to generate report - return detailed error
