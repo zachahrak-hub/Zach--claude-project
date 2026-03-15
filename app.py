@@ -300,6 +300,26 @@ TOOLS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "fetch_google_drive_policies",
+        "description": "Download and index SOC2 policy documents from Google Drive folder. Returns formatted list of policies for SOC2 audit evidence.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "folder_id": {"type": "string", "description": "Google Drive folder ID (optional, uses GOOGLE_DRIVE_FOLDER_ID env var if not provided)"}
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "fetch_hibob_employees",
+        "description": "Export active employee list with status for SOC2 access review and new hire verification. Returns table of employees.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 # ── Excel tools ────────────────────────────────────────────────────────────────
@@ -426,6 +446,211 @@ def _search_slack(query: str) -> str:
     return output
 
 
+# ── Google Drive Integration (SOC2 Policies) ───────────────────────────────────
+_gd_cache = {}  # Cache Google Drive policies per session
+
+def _fetch_google_drive_policies(folder_id: str = None) -> str:
+    """Fetch SOC2 policy documents from Google Drive folder.
+
+    Uses Google service account credentials from GOOGLE_SERVICE_ACCOUNT_JSON env var.
+    Caches results in memory for the session.
+    """
+    if not folder_id:
+        folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+
+    if not folder_id:
+        return "❌ GOOGLE_DRIVE_FOLDER_ID not configured in environment"
+
+    # Check cache first
+    cache_key = f"gd_{folder_id}"
+    if cache_key in _gd_cache:
+        cached = _gd_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaIoBaseDownload
+        import io
+
+        # Get service account credentials
+        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+        if not sa_json:
+            return "⚠️ GOOGLE_SERVICE_ACCOUNT_JSON not configured. Using folder_id only."
+
+        try:
+            sa_info = json.loads(sa_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                sa_info,
+                scopes=["https://www.googleapis.com/auth/drive.readonly"]
+            )
+        except Exception as e:
+            return f"❌ Failed to authenticate with Google Drive: {e}"
+
+        # Build Drive API client
+        drive_service = build("drive", "v3", credentials=credentials)
+
+        # List files in folder
+        query = f"'{folder_id}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'"
+        results = drive_service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name, mimeType, modifiedTime)",
+            pageSize=50
+        ).execute()
+
+        files = results.get("files", [])
+        if not files:
+            return f"⚠️ No files found in Google Drive folder {folder_id}"
+
+        # Download and extract text from each file
+        policies = []
+        for file in files:
+            try:
+                file_id = file["id"]
+                file_name = file["name"]
+
+                # Download file
+                request = drive_service.files().get_media(fileId=file_id)
+                file_content = io.BytesIO()
+                downloader = MediaIoBaseDownload(file_content, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+
+                file_content.seek(0)
+
+                # Extract text
+                text = extract_text_from_file(file_content, file_name)
+                if text:
+                    policies.append({
+                        "name": file_name,
+                        "id": file_id,
+                        "text": text[:2000]  # Truncate to 2000 chars per file
+                    })
+            except Exception as e:
+                print(f"[DEBUG] Failed to process {file_name}: {e}")
+                continue
+
+        # Format output
+        output = f"📄 Google Drive Policies ({len(policies)} files):\n\n"
+        for p in policies[:5]:  # Show first 5
+            output += f"**{p['name']}**\n{p['text']}\n\n"
+
+        if len(policies) > 5:
+            output += f"\n... and {len(policies) - 5} more policies\n"
+
+        # Cache result
+        _gd_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "file_count": len(policies)
+        }
+
+        return output
+
+    except ImportError:
+        return "❌ Google Drive API libraries not installed. Run: pip install google-api-python-client google-auth"
+    except Exception as e:
+        return f"❌ Google Drive fetch failed: {e}"
+
+
+# ── HiBob Integration (Employee Data) ──────────────────────────────────────────
+_hibob_cache = {}  # Cache employee list per session
+
+def _fetch_hibob_employees() -> str:
+    """Fetch active employee list from HiBob for access reviews.
+
+    Uses HiBob API token from HIBOB_API_TOKEN env var.
+    Caches results in memory for the session.
+    """
+    hibob_token = os.getenv("HIBOB_API_TOKEN", "")
+    if not hibob_token:
+        return "❌ HIBOB_API_TOKEN not configured in environment"
+
+    # Check cache
+    cache_key = "hibob_employees"
+    if cache_key in _hibob_cache:
+        cached = _hibob_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import requests
+
+        # HiBob API endpoint
+        api_url = "https://api.hibob.com/v1/employees"
+        headers = {
+            "Authorization": f"Basic {hibob_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Fetch active employees
+        params = {
+            "fields": "id,firstName,lastName,department,location,startDate,status",
+            "includeInactive": "false"
+        }
+
+        response = requests.get(api_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code != 200:
+            return f"❌ HiBob API error: {response.status_code} - {response.text}"
+
+        data = response.json()
+        employees = data.get("employees", [])
+
+        # Format as table for audit evidence
+        output = f"👥 Active Employees ({len(employees)} total):\n\n"
+        output += "| Name | Department | Location | Start Date | Status |\n"
+        output += "|------|------------|----------|-----------|--------|\n"
+
+        for emp in employees[:20]:  # Show first 20
+            name = f"{emp.get('firstName', '')} {emp.get('lastName', '')}"
+            dept = emp.get("department", "N/A")
+            location = emp.get("location", "N/A")
+            start = emp.get("startDate", "N/A")
+            status = emp.get("status", "active")
+            output += f"| {name} | {dept} | {location} | {start} | {status} |\n"
+
+        if len(employees) > 20:
+            output += f"\n... and {len(employees) - 20} more employees\n"
+
+        # Check for inactive but enabled accounts
+        params["includeInactive"] = "true"
+        response = requests.get(api_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            all_data = response.json()
+            all_employees = all_data.get("employees", [])
+            inactive_but_enabled = [
+                e for e in all_employees
+                if e.get("status") != "active" and e.get("enabled", True)
+            ]
+
+            if inactive_but_enabled:
+                output += f"\n⚠️ Inactive but Enabled Accounts ({len(inactive_but_enabled)}):\n"
+                for emp in inactive_but_enabled[:5]:
+                    name = f"{emp.get('firstName', '')} {emp.get('lastName', '')}"
+                    output += f"- {name} (Status: {emp.get('status')})\n"
+
+        # Cache result
+        _hibob_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "employee_count": len(employees)
+        }
+
+        return output
+
+    except ImportError:
+        return "❌ requests library not installed"
+    except Exception as e:
+        return f"❌ HiBob fetch failed: {e}"
+
+
 # ── Tool executor (browser) ────────────────────────────────────────────────────
 def execute_tool(tool_name: str, tool_input: dict) -> str:
     # Non-browser tools — handle before attempting to launch browser
@@ -438,6 +663,10 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
             return f"❌ fetch_url failed: {e}"
     if tool_name == "search_slack":
         return _search_slack(tool_input.get("query", ""))
+    if tool_name == "fetch_google_drive_policies":
+        return _fetch_google_drive_policies(tool_input.get("folder_id"))
+    if tool_name == "fetch_hibob_employees":
+        return _fetch_hibob_employees()
 
     if not _PLAYWRIGHT_AVAILABLE:
         return "❌ Browser automation is not available in this environment (Playwright not installed)."

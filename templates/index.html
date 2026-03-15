@@ -1047,6 +1047,15 @@
         .ctrl-expand-btn { font-size: .7rem; color: #94a3b8; background: none; border: none; cursor: pointer; padding: 2px 4px; }
         .ctrl-expand-btn:hover { color: #2563eb; }
 
+        /* EVIDENCE STATUS (Phase 1) */
+        .evidence-status { display: flex; align-items: center; gap: 8px; font-size: .75rem; color: #64748b; margin-top: 4px; padding-top: 4px; border-top: 1px solid #f1f5f9; }
+        .evidence-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .evidence-dot.fetched { background: #16a34a; }
+        .evidence-dot.manual { background: #94a3b8; }
+        .evidence-timestamp { color: #94a3b8; font-size: .7rem; }
+        .btn-refresh-evidence { font-size: .7rem; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 3px; padding: 2px 8px; cursor: pointer; margin-left: auto; }
+        .btn-refresh-evidence:hover { background: #dbeafe; color: #2563eb; }
+
         @media (max-width: 900px) {
           .soc-kpis { grid-template-columns: repeat(3,1fr); }
           .soc-sidebar { width: 160px; min-width: 160px; }
