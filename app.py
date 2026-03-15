@@ -547,7 +547,9 @@ def _cx_fetch(url: str, use_browser: bool = True) -> str:
                 except Exception as launch_error:
                     # Log failure reason for debugging
                     print(f"[DEBUG] Chromium launch failed: {launch_error}")
-                    return _http_fallback(url)
+                    # Try external service before HTTP fallback
+                    external_result = _external_fetch(url)
+                    return external_result if external_result else _http_fallback(url)
 
                 try:
                     context = browser.new_context(
@@ -594,12 +596,55 @@ def _cx_fetch(url: str, use_browser: bool = True) -> str:
                         browser.close()
                     except:
                         pass
-                    return _http_fallback(url)
+                    # Try external service before HTTP fallback
+                    external_result = _external_fetch(url)
+                    return external_result if external_result else _http_fallback(url)
         except Exception as browser_error:
             print(f"[DEBUG] Browser error: {browser_error}")
-            return _http_fallback(url)
+            # Try external service before HTTP fallback
+            external_result = _external_fetch(url)
+            return external_result if external_result else _http_fallback(url)
 
     return _http_fallback(url)
+
+
+def _external_fetch(url: str) -> str:
+    """Fetch using browserless.io when local Playwright fails."""
+    import requests as req
+
+    api_key = os.getenv("BROWSERLESS_API_KEY")
+    if not api_key:
+        print("[DEBUG] Browserless.io disabled (no API key)")
+        return ""
+
+    if not os.getenv("BROWSERLESS_ENABLED", "true").lower() == "true":
+        print("[DEBUG] Browserless.io disabled (BROWSERLESS_ENABLED=false)")
+        return ""
+
+    try:
+        response = req.post(
+            "https://chrome.browserless.io/content",
+            headers={"Cache-Control": "no-cache"},
+            json={
+                "url": url,
+                "options": {
+                    "args": ["--no-sandbox"],
+                    "timeout": 20000  # 20 second timeout
+                }
+            },
+            auth=("", api_key),  # Basic auth with API key
+            timeout=25  # HTTP timeout (allow 20s render + overhead)
+        )
+
+        if response.status_code == 200:
+            print(f"[DEBUG] Browserless.io succeeded for {url[:50]}")
+            return response.text[:8000]
+        else:
+            print(f"[DEBUG] Browserless.io failed (HTTP {response.status_code})")
+            return ""
+    except Exception as e:
+        print(f"[DEBUG] External service error: {e}")
+        return ""
 
 
 def _http_fallback(url: str) -> str:
