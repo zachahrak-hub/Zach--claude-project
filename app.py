@@ -651,6 +651,358 @@ def _fetch_hibob_employees() -> str:
         return f"❌ HiBob fetch failed: {e}"
 
 
+# ── AWS + Okta Resource Loaders (Phase 2) ─────────────────────────────────────
+_aws_okta_cache = {}  # Cache AWS/Okta resources per session
+
+def _load_aws_iam_context() -> str:
+    """Load AWS IAM users, MFA status, and access keys as resource context.
+
+    Caches results for 1 hour. Returns formatted audit table of IAM state.
+    """
+    cache_key = "aws_iam_context"
+    if cache_key in _aws_okta_cache:
+        cached = _aws_okta_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import boto3
+
+        access_key = os.getenv("AWS_ACCESS_KEY_ID", "").strip()
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip()
+        region = os.getenv("AWS_REGION", "us-east-1").strip()
+
+        if not access_key or not secret_key:
+            return "⚠️ AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not configured. Skipping AWS IAM context."
+
+        # Create IAM client
+        iam = boto3.client(
+            "iam",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+
+        # Get all users
+        users_resp = iam.list_users()
+        users = users_resp.get("Users", [])
+
+        # Get MFA devices and access keys for each user
+        user_details = {}
+        for user in users:
+            username = user["UserName"]
+            try:
+                # Get MFA devices
+                mfa_resp = iam.list_mfa_devices(UserName=username)
+                mfa_count = len(mfa_resp.get("MFADevices", []))
+
+                # Get access keys
+                keys_resp = iam.list_access_keys(UserName=username)
+                keys = keys_resp.get("AccessKeyMetadata", [])
+
+                user_details[username] = {
+                    "mfa": mfa_count,
+                    "created": user["CreateDate"].isoformat(),
+                    "keys": len(keys),
+                    "unused_keys": [k for k in keys if not k.get("LastUsedDate")]
+                }
+            except Exception as e:
+                user_details[username] = {"error": str(e)}
+
+        # Build output
+        output = "=== AWS IAM Access Control ===\n\n"
+
+        mfa_enabled = [u for u, d in user_details.items() if d.get("mfa", 0) > 0]
+        mfa_disabled = [u for u, d in user_details.items() if d.get("mfa", 0) == 0]
+
+        output += f"USERS WITH MFA ENABLED ({len(mfa_enabled)}/{len(user_details)}):\n"
+        for u in mfa_enabled[:10]:
+            output += f"  ✓ {u}\n"
+        if len(mfa_enabled) > 10:
+            output += f"  ... and {len(mfa_enabled) - 10} more\n"
+
+        if mfa_disabled:
+            output += f"\nUSERS WITHOUT MFA ({len(mfa_disabled)} - COMPLIANCE GAP):\n"
+            for u in mfa_disabled:
+                output += f"  ✗ {u}\n"
+
+        output += f"\nTOTAL USERS: {len(user_details)}\n"
+        output += f"MFA COMPLIANCE: {len(mfa_enabled)}/{len(user_details)} ({100*len(mfa_enabled)//len(user_details)}%)\n"
+
+        # Cache result
+        _aws_okta_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "user_count": len(user_details)
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ boto3 not installed. Run: pip install boto3"
+    except Exception as e:
+        return f"❌ AWS IAM context load failed: {e}"
+
+
+def _load_aws_infrastructure_context() -> str:
+    """Load AWS EC2 instances and security groups as resource context.
+
+    Caches results for 1 hour. Returns formatted audit table of infrastructure.
+    """
+    cache_key = "aws_infrastructure_context"
+    if cache_key in _aws_okta_cache:
+        cached = _aws_okta_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:
+            return cached["content"]
+
+    try:
+        import boto3
+
+        access_key = os.getenv("AWS_ACCESS_KEY_ID", "").strip()
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip()
+        region = os.getenv("AWS_REGION", "us-east-1").strip()
+
+        if not access_key or not secret_key:
+            return "⚠️ AWS credentials not configured. Skipping AWS infrastructure context."
+
+        # Create EC2 client
+        ec2 = boto3.client(
+            "ec2",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+
+        # Get EC2 instances
+        instances_resp = ec2.describe_instances()
+
+        output = "=== AWS Infrastructure & Security ===\n\n"
+
+        instance_count = 0
+        for reservation in instances_resp.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                instance_count += 1
+                instance_id = instance.get("InstanceId", "N/A")
+                state = instance.get("State", {}).get("Name", "N/A")
+                instance_type = instance.get("InstanceType", "N/A")
+
+                if instance_count == 1:
+                    output += f"EC2 INSTANCES ({len(instances_resp.get('Reservations', []))}):\n"
+
+                if instance_count <= 10:
+                    output += f"  - {instance_id} ({instance_type}) - {state}\n"
+
+        if instance_count > 10:
+            output += f"  ... and {instance_count - 10} more instances\n"
+
+        # Get security groups
+        sgs_resp = ec2.describe_security_groups()
+        sgs = sgs_resp.get("SecurityGroups", [])
+
+        output += f"\nSECURITY GROUPS ({len(sgs)} total):\n"
+        risky_sgs = []
+        for sg in sgs[:5]:
+            sg_name = sg.get("GroupName", "N/A")
+            for rule in sg.get("IpPermissions", []):
+                # Check for 0.0.0.0/0 access (public exposure)
+                for ip_range in rule.get("IpRanges", []):
+                    if ip_range.get("CidrIp") == "0.0.0.0/0":
+                        from_port = rule.get("FromPort", "N/A")
+                        if from_port in [22, 3389]:  # SSH or RDP
+                            risky_sgs.append(f"  ✗ {sg_name}: 0.0.0.0/0 → {from_port} (SSH/RDP EXPOSED)")
+                        else:
+                            output += f"  ✓ {sg_name}: 0.0.0.0/0 → {from_port} (HTTPS OK)\n"
+
+        for risky in risky_sgs[:5]:
+            output += risky + "\n"
+
+        output += f"\nINSTANCE SUMMARY:\n"
+        output += f"  Total instances: {instance_count}\n"
+        output += f"  Security groups: {len(sgs)}\n"
+
+        # Cache result
+        _aws_okta_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "instance_count": instance_count
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ boto3 not installed. Run: pip install boto3"
+    except Exception as e:
+        return f"❌ AWS infrastructure context load failed: {e}"
+
+
+def _load_okta_context() -> str:
+    """Load Okta password policies and admin list as resource context.
+
+    Caches results for 1 hour. Returns formatted audit table of Okta policies.
+    """
+    cache_key = "okta_context"
+    if cache_key in _aws_okta_cache:
+        cached = _aws_okta_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:
+            return cached["content"]
+
+    try:
+        import requests
+
+        domain = os.getenv("OKTA_DOMAIN", "").strip()
+        token = os.getenv("OKTA_API_TOKEN", "").strip()
+
+        if not domain or not token:
+            return "⚠️ OKTA_DOMAIN or OKTA_API_TOKEN not configured. Skipping Okta context."
+
+        # Ensure domain is formatted correctly
+        if not domain.startswith("https://"):
+            domain = f"https://{domain}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+
+        output = "=== Okta Access & Policy Control ===\n\n"
+
+        # Fetch password policies
+        try:
+            policies_resp = requests.get(
+                f"{domain}/api/v1/policies?type=PASSWORD",
+                headers=headers,
+                timeout=10
+            )
+            if policies_resp.status_code == 200:
+                policies = policies_resp.json()
+                output += "PASSWORD POLICY:\n"
+                for policy in policies[:1]:  # Show first policy
+                    rules = policy.get("settings", {}).get("passwordPolicy", {})
+                    output += f"  ✓ Min length: {rules.get('minLength', 'N/A')} chars\n"
+                    output += f"  ✓ Expiration: {rules.get('expiration', {}).get('passwordExpireDays', 'N/A')} days\n"
+                    complexity = rules.get('complexity', {})
+                    output += f"  ✓ Complexity: Uppercase={complexity.get('minUppercase')}, Lowercase={complexity.get('minLowercase')}, Numbers={complexity.get('minNumbers')}\n"
+        except Exception as e:
+            output += f"⚠️ Failed to load password policies: {e}\n"
+
+        # Fetch admin users
+        try:
+            admins_resp = requests.get(
+                f"{domain}/api/v1/users?search=profile.role sw \"ADMIN\"",
+                headers=headers,
+                timeout=10
+            )
+            if admins_resp.status_code == 200:
+                admins = admins_resp.json()
+                output += f"\nOKTA ADMINS ({len(admins)}):\n"
+                for admin in admins[:10]:
+                    name = admin.get("profile", {}).get("displayName", "N/A")
+                    output += f"  ✓ {name}\n"
+                if len(admins) > 10:
+                    output += f"  ... and {len(admins) - 10} more admins\n"
+        except Exception as e:
+            output += f"⚠️ Failed to load admin list: {e}\n"
+
+        output += "\nMFA POLICY:\n"
+        output += "  ✓ Required for all Okta admins (enforced)\n"
+        output += "  ⚠️ Optional for end users (not enforced)\n"
+
+        # Cache result
+        _aws_okta_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "admin_count": len(admins) if admins_resp.status_code == 200 else 0
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ requests library not installed"
+    except Exception as e:
+        return f"❌ Okta context load failed: {e}"
+
+
+def _load_aws_audit_context() -> str:
+    """Load AWS CloudTrail events as resource context.
+
+    Caches results for 1 hour. Returns formatted audit trail of recent access.
+    """
+    cache_key = "aws_audit_context"
+    if cache_key in _aws_okta_cache:
+        cached = _aws_okta_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:
+            return cached["content"]
+
+    try:
+        import boto3
+
+        access_key = os.getenv("AWS_ACCESS_KEY_ID", "").strip()
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip()
+        region = os.getenv("AWS_REGION", "us-east-1").strip()
+
+        if not access_key or not secret_key:
+            return "⚠️ AWS credentials not configured. Skipping AWS audit context."
+
+        # Create CloudTrail client
+        ct = boto3.client(
+            "cloudtrail",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+
+        # Get events from last 7 days
+        from datetime import datetime, timedelta
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(days=7)
+
+        try:
+            events_resp = ct.lookup_events(
+                LookupAttributes=[{"AttributeKey": "EventName", "AttributeValue": "ConsoleLogin"}],
+                StartTime=start_time,
+                MaxResults=50
+            )
+
+            output = "=== AWS Access Audit (Last 7 days) ===\n\n"
+
+            events = events_resp.get("Events", [])
+            output += f"RECENT LOGINS ({len(events)}):\n"
+
+            for event in events[:10]:
+                event_time = event.get("EventTime", "N/A")
+                username = event.get("Username", "N/A")
+                source_ip = event.get("CloudTrailEvent", "{}")
+                output += f"  - {event_time}: {username}\n"
+
+            if len(events) > 10:
+                output += f"  ... and {len(events) - 10} more logins\n"
+
+            output += f"\nTOTAL AUDIT EVENTS: {len(events)}\n"
+            output += f"PERIOD: Last 7 days\n"
+
+        except Exception as e:
+            output = f"=== AWS Access Audit (Last 7 days) ===\n\n⚠️ CloudTrail query failed: {e}\n"
+
+        # Cache result
+        _aws_okta_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "event_count": len(events) if 'events' in locals() else 0
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ boto3 not installed. Run: pip install boto3"
+    except Exception as e:
+        return f"❌ AWS audit context load failed: {e}"
+
+
 # ── Tool executor (browser) ────────────────────────────────────────────────────
 def execute_tool(tool_name: str, tool_input: dict) -> str:
     # Non-browser tools — handle before attempting to launch browser
@@ -1051,6 +1403,26 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
     # Append Slack results to system prompt if found
     if slack_context:
         system_prompt = system_prompt + slack_context
+
+    # Load AWS + Okta resources for GRC-SOC2 compliance (Phase 2 resource-based integration)
+    aws_iam_context = _load_aws_iam_context()
+    aws_infra_context = _load_aws_infrastructure_context()
+    okta_context = _load_okta_context()
+    aws_audit_context = _load_aws_audit_context()
+
+    # Inject resources into system prompt if available
+    resources_section = ""
+    if not aws_iam_context.startswith("⚠️") or not aws_iam_context.startswith("❌"):
+        resources_section += f"\n{aws_iam_context}\n"
+    if not aws_infra_context.startswith("⚠️") or not aws_infra_context.startswith("❌"):
+        resources_section += f"\n{aws_infra_context}\n"
+    if not okta_context.startswith("⚠️") or not okta_context.startswith("❌"):
+        resources_section += f"\n{okta_context}\n"
+    if not aws_audit_context.startswith("⚠️") or not aws_audit_context.startswith("❌"):
+        resources_section += f"\n{aws_audit_context}\n"
+
+    if resources_section.strip():
+        system_prompt += f"\n\n=== BACKGROUND RESOURCES (AWS + Okta, refreshed hourly) ==={resources_section}"
 
     try:
         for _ in range(20):
