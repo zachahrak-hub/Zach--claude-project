@@ -1240,6 +1240,226 @@ def _load_github_context() -> str:
         return f"❌ GitHub context load failed: {e}"
 
 
+# ── Orca Security + Coralogix CSPM Integration (Phase 4) ───────────────────────
+_orca_cache = {}
+_coralogix_cspm_cache = {}
+
+def _load_orca_context() -> str:
+    """Load Orca Security SAST vulnerability scan results.
+
+    Uses Orca API key from environment variables.
+    Caches results in memory for 1 hour.
+    """
+    cache_key = "orca_context"
+    if cache_key in _orca_cache:
+        cached = _orca_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import requests
+
+        api_key = os.getenv("ORCA_API_KEY", "").strip()
+        endpoint = os.getenv("ORCA_ENDPOINT", "").strip()
+
+        if not api_key or not endpoint:
+            return "⚠️ Orca Security credentials not configured. Skipping Orca context."
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        # Query vulnerabilities by severity
+        vuln_url = f"{endpoint}/vulnerabilities"
+        vuln_params = {"limit": 1000}
+
+        try:
+            vuln_resp = requests.get(vuln_url, headers=headers, params=vuln_params, timeout=10)
+            if vuln_resp.status_code != 200:
+                return f"⚠️ Orca API query failed: {vuln_resp.status_code}"
+
+            vulns = vuln_resp.json()
+            vulnerabilities = vulns.get("vulnerabilities", []) if isinstance(vulns, dict) else vulns
+
+            # Categorize by severity
+            by_severity = {"Critical": [], "High": [], "Medium": [], "Low": []}
+            for vuln in vulnerabilities:
+                severity = vuln.get("severity", "Low")
+                if severity in by_severity:
+                    by_severity[severity].append(vuln)
+
+            # Calculate remediation stats
+            total_vulns = len(vulnerabilities)
+            remediated = sum(1 for v in vulnerabilities if v.get("status") == "remediated")
+            remediation_rate = (remediated / total_vulns * 100) if total_vulns > 0 else 0
+
+            # Get unresolved critical items
+            unresolved_critical = [v for v in by_severity["Critical"] if v.get("status") != "remediated"]
+
+            # Format output
+            output = "=== Orca Security Vulnerability Scan Results ===\n\n"
+            output += "VULNERABILITY SUMMARY (by Severity):\n"
+            for sev in ["Critical", "High", "Medium", "Low"]:
+                count = len(by_severity[sev])
+                remediated_count = sum(1 for v in by_severity[sev] if v.get("status") == "remediated")
+                output += f"- {sev:8s}: {count:3d} vulnerabilities ({remediated_count:3d} remediated, {count - remediated_count:3d} unresolved)\n"
+
+            output += f"\nREMEDIATION RATE: {remediation_rate:.1f}% ({remediated}/{total_vulns} vulnerabilities resolved)\n"
+
+            if unresolved_critical:
+                output += f"\nUNRESOLVED CRITICAL ITEMS ({len(unresolved_critical)}):\n"
+                for i, vuln in enumerate(unresolved_critical[:5], 1):
+                    title = vuln.get("title", "Unknown")
+                    risk = vuln.get("risk_level", "High")
+                    output += f"  {i}. {title} - Risk: {risk}\n"
+
+            # Get latest scan time
+            try:
+                scan_url = f"{endpoint}/scans/latest"
+                scan_resp = requests.get(scan_url, headers=headers, timeout=10)
+                if scan_resp.status_code == 200:
+                    scan_data = scan_resp.json()
+                    scan_time = scan_data.get("scan_time", "Unknown")
+                    output += f"\nRECENT SCAN: {scan_time} UTC\n"
+            except Exception:
+                pass
+
+            # Cache result
+            _orca_cache[cache_key] = {
+                "content": output,
+                "timestamp": datetime.utcnow(),
+                "vuln_count": total_vulns
+            }
+
+            return output
+
+        except Exception as e:
+            return f"⚠️ Orca API query failed: {str(e)[:100]}"
+
+    except ImportError:
+        return "⚠️ requests library not installed"
+    except Exception as e:
+        return f"❌ Orca context load failed: {e}"
+
+
+def _load_coralogix_cspm_context() -> str:
+    """Load Coralogix CSPM compliance findings and control status.
+
+    Uses Coralogix API credentials from environment.
+    Caches results in memory for 1 hour.
+    """
+    cache_key = "coralogix_cspm_context"
+    if cache_key in _coralogix_cspm_cache:
+        cached = _coralogix_cspm_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import requests
+
+        api_key = os.getenv("CORALOGIX_CSPM_API_KEY", "").strip()
+        endpoint = os.getenv("CORALOGIX_CSPM_ENDPOINT", "").strip()
+        region = os.getenv("CORALOGIX_CSPM_REGION", "us").strip()
+
+        if not api_key or not endpoint:
+            return "⚠️ Coralogix CSPM credentials not configured. Skipping Coralogix context."
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        output = "=== Coralogix CSPM Compliance & Remediation ===\n\n"
+
+        # Query controls and their status
+        try:
+            controls_url = f"{endpoint}/compliance/controls"
+            controls_resp = requests.get(controls_url, headers=headers, timeout=10)
+
+            if controls_resp.status_code == 200:
+                controls_data = controls_resp.json()
+                controls = controls_data.get("controls", []) if isinstance(controls_data, dict) else controls_data
+
+                passing = sum(1 for c in controls if c.get("status") == "passed")
+                warning = sum(1 for c in controls if c.get("status") == "warning")
+                failing = sum(1 for c in controls if c.get("status") == "failed")
+                total = len(controls)
+
+                output += f"CONTROLS MONITORED: {total}\n"
+                output += "STATUS DISTRIBUTION:\n"
+                output += f"  ✓ Passing:   {passing:3d} controls ({100*passing/total:5.1f}%)\n" if total > 0 else "  ✓ Passing:   0 controls\n"
+                output += f"  ⚠ Warning:  {warning:3d} controls ({100*warning/total:5.1f}%)\n" if total > 0 else "  ⚠ Warning:  0 controls\n"
+                output += f"  ✗ Failing:  {failing:3d} controls ({100*failing/total:5.1f}%)\n\n" if total > 0 else "  ✗ Failing:  0 controls\n\n"
+
+                # Get critical gaps
+                failing_controls = [c for c in controls if c.get("status") == "failed"]
+                if failing_controls:
+                    output += "CRITICAL GAPS:\n"
+                    for control in failing_controls[:5]:
+                        name = control.get("name", "Unknown")
+                        count = control.get("affected_count", 0)
+                        output += f"  - {name} - {count} findings\n"
+
+        except Exception as e:
+            output += f"⚠️ Controls query failed: {str(e)[:50]}\n\n"
+
+        # Query open findings (severity >= High)
+        try:
+            findings_url = f"{endpoint}/compliance/findings"
+            findings_params = {"severity": ["critical", "high"], "status": "open"}
+            findings_resp = requests.get(findings_url, headers=headers, params=findings_params, timeout=10)
+
+            if findings_resp.status_code == 200:
+                findings_data = findings_resp.json()
+                findings = findings_data.get("findings", []) if isinstance(findings_data, dict) else findings_data
+
+                output += f"OPEN HIGH-SEVERITY FINDINGS: {len(findings)}\n\n"
+
+                overdue_count = 0
+                for i, finding in enumerate(findings[:10], 1):
+                    title = finding.get("title", "Unknown")
+                    status = finding.get("status", "Open")
+                    owner = finding.get("owner", "Unassigned")
+                    target_date = finding.get("target_fix_date", "Not set")
+                    days_overdue = finding.get("days_overdue", 0)
+
+                    output += f"{i}. {title}\n"
+                    output += f"   Status: {status}\n"
+                    output += f"   Owner: {owner}\n"
+                    output += f"   Target Fix Date: {target_date}\n"
+                    if days_overdue > 0:
+                        output += f"   Days Overdue: {days_overdue} ⚠️ OVERDUE\n"
+                        overdue_count += 1
+                    else:
+                        output += f"   Days Overdue: 0\n"
+                    output += "\n"
+
+                if overdue_count > 0:
+                    output += f"OVERDUE ITEMS: {overdue_count} (Flag for escalation)\n"
+
+        except Exception as e:
+            output += f"⚠️ Findings query failed: {str(e)[:50]}\n"
+
+        output += f"LAST SCAN: {datetime.utcnow().isoformat()} UTC\n"
+
+        # Cache result
+        _coralogix_cspm_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "finding_count": len(findings) if 'findings' in locals() else 0
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ requests library not installed"
+    except Exception as e:
+        return f"❌ Coralogix CSPM context load failed: {e}"
+
+
 # ── Tool executor (browser) ────────────────────────────────────────────────────
 def execute_tool(tool_name: str, tool_input: dict) -> str:
     # Non-browser tools — handle before attempting to launch browser
@@ -1651,6 +1871,10 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
     salesforce_context = _load_salesforce_context()
     github_context = _load_github_context()
 
+    # Load Orca + Coralogix resources for GRC-SOC2 compliance (Phase 4 resource-based integration)
+    orca_context = _load_orca_context()
+    coralogix_cspm_context = _load_coralogix_cspm_context()
+
     # Inject resources into system prompt if available
     resources_section = ""
     if not aws_iam_context.startswith("⚠️") or not aws_iam_context.startswith("❌"):
@@ -1665,9 +1889,13 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
         resources_section += f"\n{salesforce_context}\n"
     if not github_context.startswith("⚠️") or not github_context.startswith("❌"):
         resources_section += f"\n{github_context}\n"
+    if not orca_context.startswith("⚠️") or not orca_context.startswith("❌"):
+        resources_section += f"\n{orca_context}\n"
+    if not coralogix_cspm_context.startswith("⚠️") or not coralogix_cspm_context.startswith("❌"):
+        resources_section += f"\n{coralogix_cspm_context}\n"
 
     if resources_section.strip():
-        system_prompt += f"\n\n=== BACKGROUND RESOURCES (AWS, Okta, Salesforce, GitHub - refreshed hourly) ==={resources_section}"
+        system_prompt += f"\n\n=== BACKGROUND RESOURCES (AWS, Okta, Salesforce, GitHub, Orca, Coralogix - refreshed hourly) ==={resources_section}"
 
     try:
         for _ in range(20):
