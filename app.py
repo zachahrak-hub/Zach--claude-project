@@ -723,6 +723,24 @@ def coralogix_direct_answer(question: str) -> dict:
 
 
 # ── Agent route (browser) ──────────────────────────────────────────────────────
+def _get_slack_context(question: str) -> str:
+    """Automatically search Slack for context on this question. Returns formatted string."""
+    slack_token = os.getenv("SLACK_USER_TOKEN")
+    if not slack_token:
+        return ""  # Slack disabled, no token
+
+    try:
+        # Use existing _search_slack function (already defined at line 336)
+        result = _search_slack(question)
+        # Only include Slack results if they have useful data (not the "NO INTERNAL DATA" fallback)
+        if result and "NO INTERNAL DATA" not in result:
+            return f"\nRECENT SLACK INSIGHTS (from team experts and compliance channels):\n{result}"
+        return ""
+    except Exception as e:
+        print(f"[DEBUG] Slack search failed: {e}")
+        return ""  # Graceful degradation if Slack fails
+
+
 @app.route("/agent", methods=["POST"])
 @login_required
 @limiter.limit("50 per hour")
@@ -799,6 +817,12 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
 
 {kb_section}"""
 
+    # Automatically search Slack for context (Phase 2 of 3-source KB)
+    slack_context = _get_slack_context(task)
+    # Append Slack results to system prompt if found
+    if slack_context:
+        system_prompt = system_prompt + slack_context
+
     try:
         for _ in range(20):
             response = client.messages.create(
@@ -848,7 +872,20 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
                 history.append({"role": "user", "content": task})
                 history.append({"role": "assistant", "content": final_text})
                 _agent_histories[sid] = history[-20:]
-                return jsonify({"result": final_text, "steps": steps})
+
+                # Track which knowledge sources contributed to this answer
+                sources_used = {
+                    "uploaded_docs": len(kb_text) > 0,  # KB was injected
+                    "slack": len(slack_context) > 0,    # Slack results were found
+                    "coralogix_docs": True,              # Always available
+                    "web": any("navigate" in str(step.get("tool", "")) for step in steps)  # Web browsing used
+                }
+
+                return jsonify({
+                    "result": final_text,
+                    "steps": steps,
+                    "sources": sources_used  # Which knowledge sources contributed
+                })
     except Exception as e:
         return jsonify({"result": f"Error: {str(e)}", "steps": steps})
 
