@@ -1003,6 +1003,243 @@ def _load_aws_audit_context() -> str:
         return f"❌ AWS audit context load failed: {e}"
 
 
+# ── Salesforce Integration (Phase 3) ───────────────────────────────────────────
+_salesforce_cache = {}
+
+def _load_salesforce_context() -> str:
+    """Load Salesforce customer contracts, ARR, and billing status.
+
+    Uses Salesforce OAuth2 credentials from environment variables.
+    Caches results in memory for 1 hour.
+    """
+    cache_key = "salesforce_context"
+    if cache_key in _salesforce_cache:
+        cached = _salesforce_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import requests
+
+        # Salesforce credentials from environment
+        instance = os.getenv("SALESFORCE_INSTANCE", "").strip()
+        client_id = os.getenv("SALESFORCE_CLIENT_ID", "").strip()
+        client_secret = os.getenv("SALESFORCE_CLIENT_SECRET", "").strip()
+        username = os.getenv("SALESFORCE_USERNAME", "").strip()
+        password = os.getenv("SALESFORCE_PASSWORD", "").strip()
+
+        if not all([instance, client_id, client_secret, username, password]):
+            return "⚠️ Salesforce credentials not configured. Skipping Salesforce context."
+
+        # OAuth2 authentication (Username-Password flow)
+        auth_url = f"{instance}/services/oauth2/token"
+        auth_payload = {
+            "grant_type": "password",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "username": username,
+            "password": password
+        }
+
+        auth_resp = requests.post(auth_url, data=auth_payload, timeout=10)
+        if auth_resp.status_code != 200:
+            return f"⚠️ Salesforce auth failed: {auth_resp.text[:200]}"
+
+        auth_data = auth_resp.json()
+        access_token = auth_data.get("access_token")
+
+        if not access_token:
+            return "⚠️ Salesforce auth failed: no access token received"
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Query Accounts (contracts) via SOQL
+        query_url = f"{instance}/services/data/v57.0/query"
+
+        # Get all customer accounts with ARR
+        accounts_query = "SELECT Id, Name, BillingCity, Industry, AnnualRevenue FROM Account LIMIT 100"
+        accounts_resp = requests.get(
+            query_url,
+            headers=headers,
+            params={"q": accounts_query},
+            timeout=10
+        )
+
+        if accounts_resp.status_code != 200:
+            return f"⚠️ Salesforce query failed: {accounts_resp.text[:200]}"
+
+        accounts_data = accounts_resp.json()
+        accounts = accounts_data.get("records", [])
+
+        # Get all active contracts
+        contracts_query = "SELECT Id, AccountId, ContractNumber, StartDate, EndDate, Status FROM Contract WHERE Status='Activated' LIMIT 100"
+        contracts_resp = requests.get(
+            query_url,
+            headers=headers,
+            params={"q": contracts_query},
+            timeout=10
+        )
+
+        contracts = contracts_resp.json().get("records", []) if contracts_resp.status_code == 200 else []
+
+        # Format output
+        output = "=== Salesforce Customer Contracts & ARR ===\n\n"
+        output += f"TOTAL ACCOUNTS: {len(accounts)}\n"
+        output += f"TOTAL ACTIVE CONTRACTS: {len(contracts)}\n\n"
+
+        total_arr = sum([a.get("AnnualRevenue", 0) or 0 for a in accounts])
+        output += f"TOTAL ANNUAL REVENUE: ${total_arr:,.0f}\n\n"
+
+        output += "TOP ACCOUNTS BY ARR:\n"
+        sorted_accounts = sorted(accounts, key=lambda x: x.get("AnnualRevenue", 0) or 0, reverse=True)
+        for acc in sorted_accounts[:10]:
+            arr = acc.get("AnnualRevenue", 0) or 0
+            output += f"  - {acc['Name']}: ${arr:,.0f} ({acc.get('Industry', 'N/A')})\n"
+
+        output += "\nACTIVE CONTRACTS:\n"
+        for cont in contracts[:20]:
+            acc_id = cont.get("AccountId")
+            acc_name = next((a["Name"] for a in accounts if a["Id"] == acc_id), "Unknown")
+            output += f"  - {cont['ContractNumber']}: {acc_name} ({cont['StartDate']} to {cont['EndDate']})\n"
+
+        # Cache result
+        _salesforce_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "account_count": len(accounts),
+            "contract_count": len(contracts)
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ requests library not installed"
+    except Exception as e:
+        return f"❌ Salesforce context load failed: {e}"
+
+
+# ── GitHub Integration (Phase 3) ────────────────────────────────────────────────
+_github_cache = {}
+
+def _load_github_context() -> str:
+    """Load GitHub organization members, repository access levels, and recent activity.
+
+    Uses GitHub API token from environment.
+    Caches results in memory for 1 hour.
+    """
+    cache_key = "github_context"
+    if cache_key in _github_cache:
+        cached = _github_cache[cache_key]
+        age = (datetime.utcnow() - cached["timestamp"]).total_seconds()
+        if age < 3600:  # Cache for 1 hour
+            return cached["content"]
+
+    try:
+        import requests
+
+        # GitHub credentials
+        org_name = os.getenv("GITHUB_ORG", "").strip()
+        token = os.getenv("GITHUB_API_TOKEN", "").strip()
+
+        if not org_name or not token:
+            return "⚠️ GITHUB_ORG or GITHUB_API_TOKEN not configured. Skipping GitHub context."
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        api_base = "https://api.github.com"
+
+        # Get organization members
+        members_url = f"{api_base}/orgs/{org_name}/members"
+        members_resp = requests.get(members_url, headers=headers, timeout=10)
+
+        if members_resp.status_code != 200:
+            return f"⚠️ GitHub org members query failed: {members_resp.status_code}"
+
+        members = members_resp.json()
+
+        # Get repositories
+        repos_url = f"{api_base}/orgs/{org_name}/repos"
+        repos_params = {"per_page": 100}
+        repos_resp = requests.get(repos_url, headers=headers, params=repos_params, timeout=10)
+        repos = repos_resp.json() if repos_resp.status_code == 200 else []
+
+        # Get outside collaborators
+        collabs_url = f"{api_base}/orgs/{org_name}/outside-collaborators"
+        collabs_resp = requests.get(collabs_url, headers=headers, timeout=10)
+        collaborators = collabs_resp.json() if collabs_resp.status_code == 200 else []
+
+        # Get recent pull requests (merged in last 30 days)
+        from datetime import timedelta as dt_timedelta
+        since_date = (datetime.utcnow() - dt_timedelta(days=30)).isoformat() + "Z"
+
+        prs_url = f"{api_base}/search/issues"
+        prs_params = {
+            "q": f"org:{org_name} is:pr is:merged merged:>{since_date}",
+            "per_page": 50
+        }
+        prs_resp = requests.get(prs_url, headers=headers, params=prs_params, timeout=10)
+        prs_data = prs_resp.json() if prs_resp.status_code == 200 else {}
+        merged_prs = prs_data.get("items", [])
+
+        # Format output
+        output = "=== GitHub Organization Access & Activity ===\n\n"
+        output += f"ORGANIZATION: {org_name}\n"
+        output += f"TOTAL MEMBERS: {len(members)}\n"
+        output += f"OUTSIDE COLLABORATORS: {len(collaborators)}\n"
+        output += f"REPOSITORIES: {len(repos)}\n\n"
+
+        output += "ORGANIZATION MEMBERS:\n"
+        for member in members[:20]:
+            login = member.get("login", "N/A")
+            output += f"  - {login}\n"
+        if len(members) > 20:
+            output += f"  ... and {len(members) - 20} more\n"
+
+        if collaborators:
+            output += f"\nOUTSIDE COLLABORATORS (🚨 REVIEW REQUIRED):\n"
+            for collab in collaborators[:10]:
+                login = collab.get("login", "N/A")
+                output += f"  ⚠️ {login}\n"
+
+        output += f"\nREPOSITORIES:\n"
+        for repo in repos[:15]:
+            name = repo.get("name", "N/A")
+            private = "🔒 Private" if repo.get("private") else "🌐 Public"
+            output += f"  - {name} [{private}]\n"
+        if len(repos) > 15:
+            output += f"  ... and {len(repos) - 15} more\n"
+
+        output += f"\nRECENT MERGED PRS (Last 30 days): {len(merged_prs)}\n"
+        for pr in merged_prs[:10]:
+            repo = pr.get("repository_url", "").split("/")[-1] if pr.get("repository_url") else "N/A"
+            author = pr.get("user", {}).get("login", "N/A")
+            output += f"  - {repo}: PR #{pr.get('number')} by @{author}\n"
+
+        # Cache result
+        _github_cache[cache_key] = {
+            "content": output,
+            "timestamp": datetime.utcnow(),
+            "member_count": len(members),
+            "repo_count": len(repos),
+            "collab_count": len(collaborators)
+        }
+
+        return output
+
+    except ImportError:
+        return "⚠️ requests library not installed"
+    except Exception as e:
+        return f"❌ GitHub context load failed: {e}"
+
+
 # ── Tool executor (browser) ────────────────────────────────────────────────────
 def execute_tool(tool_name: str, tool_input: dict) -> str:
     # Non-browser tools — handle before attempting to launch browser
@@ -1410,6 +1647,10 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
     okta_context = _load_okta_context()
     aws_audit_context = _load_aws_audit_context()
 
+    # Load Salesforce + GitHub resources for GRC-SOC2 compliance (Phase 3 resource-based integration)
+    salesforce_context = _load_salesforce_context()
+    github_context = _load_github_context()
+
     # Inject resources into system prompt if available
     resources_section = ""
     if not aws_iam_context.startswith("⚠️") or not aws_iam_context.startswith("❌"):
@@ -1420,9 +1661,13 @@ A: Details at https://coralogix.com/docs/user-guides/account-management/user-man
         resources_section += f"\n{okta_context}\n"
     if not aws_audit_context.startswith("⚠️") or not aws_audit_context.startswith("❌"):
         resources_section += f"\n{aws_audit_context}\n"
+    if not salesforce_context.startswith("⚠️") or not salesforce_context.startswith("❌"):
+        resources_section += f"\n{salesforce_context}\n"
+    if not github_context.startswith("⚠️") or not github_context.startswith("❌"):
+        resources_section += f"\n{github_context}\n"
 
     if resources_section.strip():
-        system_prompt += f"\n\n=== BACKGROUND RESOURCES (AWS + Okta, refreshed hourly) ==={resources_section}"
+        system_prompt += f"\n\n=== BACKGROUND RESOURCES (AWS, Okta, Salesforce, GitHub - refreshed hourly) ==={resources_section}"
 
     try:
         for _ in range(20):
